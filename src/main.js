@@ -48,6 +48,46 @@ window.addEventListener('resize', () => {
 // Start screen
 const startScreen = document.getElementById('startScreen');
 if (startScreen) {
+    const beginBtn = document.getElementById('beginBtn');
+
+    // Preload all critical assets before enabling the play button
+    const PRELOAD_SOUNDS = [
+        'assets/sounds/AirRaidSiren.mp3',
+        'assets/sounds/MissileAlert.mp3',
+        'assets/sounds/Explosion.mp3',
+        'assets/sounds/InterceptionExplosion.mp3',
+        'assets/sounds/Target Destroyed.mp3',
+        'assets/sounds/Sound Effect - Missile Launch.mp3',
+        'assets/sounds/C-RAM.mp3',
+        'assets/sounds/C-RAMOpening.mp3',
+    ];
+
+    const loadAudio = src => new Promise(resolve => {
+        const a = new Audio();
+        a.addEventListener('canplaythrough', resolve, { once: true });
+        a.addEventListener('error', resolve, { once: true }); // don't block on missing files
+        a.src = src;
+        a.load();
+    });
+
+    const loadImage = src => new Promise(resolve => {
+        const img = new Image();
+        img.onload = img.onerror = resolve;
+        img.src = src;
+    });
+
+    Promise.all([
+        ...PRELOAD_SOUNDS.map(loadAudio),
+        loadImage('assets/images/Avatar.png'),
+        loadImage('assets/images/QatarOutline.svg'),
+        loadImage('assets/images/qa.svg'),
+    ]).then(() => {
+        if (beginBtn) {
+            beginBtn.disabled = false;
+            beginBtn.textContent = '▶ ACTIVATE DEFENSE SYSTEM';
+        }
+    });
+
     const begin = () => {
         startScreen.classList.add('fade-out');
         setTimeout(() => { startScreen.classList.add('hidden'); }, 600);
@@ -55,7 +95,7 @@ if (startScreen) {
         game.start();
         sound.speak('Qatar Air Defense System activated. Defend the homeland.');
     };
-    document.getElementById('beginBtn')?.addEventListener('click', begin);
+    beginBtn?.addEventListener('click', begin);
 } else {
     game.start();
 }

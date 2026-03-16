@@ -24,8 +24,8 @@
     </video>
     <!-- Play button + audio toggle — top-left over video -->
     <div style="position:absolute;top:28px;left:28px;z-index:10;display:flex;flex-direction:column;gap:8px;pointer-events:auto">
-        <button id="beginBtn" class="begin-btn" style="width:auto">
-            ▶ ACTIVATE DEFENSE SYSTEM
+        <button id="beginBtn" class="begin-btn" style="width:auto" disabled>
+            ⏳ LOADING…
         </button>
         <button id="videoAudioBtn"
                 style="background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.15);
@@ -83,21 +83,14 @@
                     <span class="stat-val" id="exchangeDisplay">—</span>
                 </div>
             </div>
+            <button id="legendBtn" class="ctrl-btn" style="margin-left:auto;flex-shrink:0">📋 LEGEND</button>
 
         </div>
 
-        <!-- Left: Arsenal/Legend tabs (top) + Active Threats (bottom) -->
+        <!-- Left: Arsenal + Active Threats -->
         <div class="panel panel-left">
-            <div class="tab-bar">
-                <button class="tab-btn active" data-panel="left" data-tab="arsenal">Arsenal</button>
-                <button class="tab-btn"        data-panel="left" data-tab="legend">Legend</button>
-            </div>
-            <div class="tab-content" id="tab-arsenal">
-                <div class="arsenal-list" id="arsenalList"></div>
-            </div>
-            <div class="tab-content hidden" id="tab-legend">
-                <div id="threatLegend"></div>
-            </div>
+            <div class="panel-title">◈ INTERCEPTOR ARSENAL</div>
+            <div class="arsenal-list" id="arsenalList"></div>
             <div class="left-threats-section">
                 <div class="panel-title" style="margin-top:8px">◈ ACTIVE THREATS</div>
                 <div id="activeThreatList"><div class="no-threats">No active threats detected</div></div>
@@ -133,6 +126,19 @@
             <button id="settingsBtn"   class="ctrl-btn">⚙ SETTINGS</button>
         </div>
     </div><!-- end .hud -->
+
+    <!-- Legend modal — pauses game while open -->
+    <div id="legendModal" class="legend-modal hidden">
+        <div class="legend-modal-box">
+            <div class="legend-modal-header">
+                <span>◈ THREAT &amp; ASSET LEGEND</span>
+                <button id="legendCloseBtn" class="legend-close-btn">✕ CLOSE</button>
+            </div>
+            <div class="legend-modal-body">
+                <div id="threatLegend"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- Music Player popup -->
     <div id="musicPlayer" class="music-player hidden">

@@ -1414,6 +1414,9 @@ export class Game {
         if (this.paused) this.sound?.stopAirRaidSiren();
         return this.paused;
     }
+    pause()    { if (!this.paused) { this.paused = true;  this.sound?.stopAirRaidSiren(); } }
+    resume()   { if (this.paused)  { this.paused = false; } }
+    isPaused() { return this.paused; }
     resize(w, h, insets) { this.radar.resize(w ?? this.canvas.width, h ?? this.canvas.height, insets); }
     getGameState()      { return this.gameState; }
     getEntityManager()  { return this.entityManager; }

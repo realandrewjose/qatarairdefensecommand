@@ -43,6 +43,8 @@ export class InputHandler {
         on('hornetBtn',        () => this._dispatchHornets());
         on('frigateBtn',       () => this._dispatchFrigates());
         on('ewBtn',            () => this._dispatchEW());
+        on('legendBtn',        () => this._openLegend());
+        on('legendCloseBtn',   () => this._closeLegend());
 
         document.addEventListener('keydown', e => this._keydown(e));
         this._initMusicPlayer();
@@ -270,6 +272,24 @@ export class InputHandler {
         });
         const cfg = INTERCEPTOR_TYPES[type];
         this.log(`Selected: ${cfg.name} — $${cfg.cost}/shot`, 'info');
+    }
+
+    _openLegend() {
+        document.getElementById('legendModal')?.classList.remove('hidden');
+        if (!this.game.isPaused?.()) {
+            this._legendPausedGame = true;
+            this.game.pause?.();
+            this.sound?.pauseMusic?.();
+        }
+    }
+
+    _closeLegend() {
+        document.getElementById('legendModal')?.classList.add('hidden');
+        if (this._legendPausedGame) {
+            this._legendPausedGame = false;
+            this.game.resume?.();
+            this.sound?.resumeMusic?.();
+        }
     }
 
     _pause() {

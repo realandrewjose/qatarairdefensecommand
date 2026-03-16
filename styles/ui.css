@@ -54,21 +54,7 @@
     border-radius: 14px; overflow: hidden;
     max-height: calc(100vh - 114px);
 }
-/* Left panel: CSS Grid gives the tab-content a guaranteed 1fr row */
-.panel-left {
-    grid-area: left;
-    height: calc(100vh - 114px);
-    display: grid;
-    grid-template-rows: auto 1fr auto;  /* tab-bar | tab-content | threats */
-    gap: 4px;
-}
-/* Tab content fills the 1fr row — no flex magic needed */
-.panel-left .tab-content {
-    flex: unset;
-    min-height: 0;
-    overflow-y: auto;
-}
-
+.panel-left  { grid-area: left;  height: calc(100vh - 114px); }
 .panel-right { grid-area: right; height: calc(100vh - 114px); overflow-y: auto; }
 
 .panel-title {
@@ -205,6 +191,47 @@
 .arsenal-tooltip-meta .tm-item span { color: var(--text); font-weight: 600; }
 
 @keyframes fadeIn { from { opacity:0; transform: translateY(-3px); } to { opacity:1; transform: none; } }
+
+/* ── Legend modal ── */
+.legend-modal {
+    position: fixed; inset: 0; z-index: 800;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: auto;
+    animation: fadeIn 0.15s ease;
+}
+.legend-modal.hidden { display: none; }
+.legend-modal-box {
+    background: rgba(7,9,15,0.97);
+    border: 1px solid rgba(59,130,246,0.35);
+    border-radius: 16px;
+    width: min(480px, 92vw);
+    max-height: 80vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+    overflow: hidden;
+}
+.legend-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid rgba(59,130,246,0.18);
+    font-size: 0.68em; font-weight: 800; letter-spacing: 2px; color: #60a5fa;
+    text-transform: uppercase; flex-shrink: 0;
+}
+.legend-close-btn {
+    background: rgba(239,68,68,0.10); border: 1px solid rgba(239,68,68,0.30);
+    color: rgba(239,68,68,0.80); font-family: inherit; font-size: 0.78em;
+    font-weight: 700; letter-spacing: 1px; padding: 4px 12px; border-radius: 7px;
+    cursor: pointer; pointer-events: auto; transition: all 0.15s ease;
+}
+.legend-close-btn:hover { background: rgba(239,68,68,0.22); color: #ef4444; border-color: #ef4444; }
+.legend-modal-body {
+    padding: 14px 18px 18px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(59,130,246,0.3) transparent;
+}
 
 /* ── Music Player popup ── */
 .music-player {
