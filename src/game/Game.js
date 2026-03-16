@@ -154,9 +154,9 @@ export class Game {
         // EW Jammer
         this._ewActive   = false;
         this._ewTimer    = 0;
-        this._ewDuration = 10;   // seconds of jamming
+        this._ewDuration = 180;  // 3 minutes of jamming
         this._ewCooldown = 0;
-        this.ewCooldownMax = 40; // seconds recharge
+        this.ewCooldownMax = 300; // 5 min recharge
 
         // Kill earnings tracking (for exchange ratio)
         this._killEarnings = 0;
@@ -166,6 +166,18 @@ export class Game {
         this._lastKillTime  = -10;
         this._gameTime      = 0;
         this._floatTexts    = [];
+
+        // Adrenaline mode (active when health ≤ 30%)
+        this._adrenMode    = false;
+
+        // Overclock powerup (2× interceptor speed)
+        this._overclockActive = false;
+        this._overclockTimer  = 0;
+
+        // Achievement system
+        this._achievementsEarned  = new Set();
+        this._achieveToasts       = [];   // { title, sub, age, maxAge }
+        this._consecutivePerfect  = 0;
 
         // Shield (powerup)
         this._shieldActive   = false;
@@ -252,6 +264,28 @@ export class Game {
         // Age / prune floating kill texts
         for (const ft of this._floatTexts) ft.age += deltaTime;
         this._floatTexts = this._floatTexts.filter(ft => ft.age < ft.maxAge);
+
+        // Adrenaline mode — triggers when health ≤ 30%
+        const _hpPct = this.gameState.getHealth() / this.gameState.getMaxHealth();
+        const _wasAdren = this._adrenMode;
+        this._adrenMode = _hpPct <= 0.30 && _hpPct > 0;
+        if (this._adrenMode && !_wasAdren) {
+            this.onLog?.('🔥 ADRENALINE MODE — +50% kill rewards while critical!', 'error');
+            this.sound?.speak('Critical damage. Emergency combat protocols active.');
+        }
+
+        // Overclock timer
+        if (this._overclockActive) {
+            this._overclockTimer -= deltaTime;
+            if (this._overclockTimer <= 0) {
+                this._overclockActive = false;
+                this.onLog?.('⚡ OVERCLOCK expired — normal intercept speed restored', 'info');
+            }
+        }
+
+        // Age / prune achievement toasts
+        for (const t of this._achieveToasts) t.age += deltaTime;
+        this._achieveToasts = this._achieveToasts.filter(t => t.age < t.maxAge);
 
         // ── Heartbeat state machine ──────────────────────────────────────────
         this._diffStateTimer += deltaTime;
@@ -486,12 +520,43 @@ export class Game {
                 this.gameState.addScore(streakBonus * 2);
             }
 
+            // ── Critical intercept (8% chance — 3× reward bonus) ──────────
+            const isCritical = Math.random() < 0.08;
+            if (isCritical) {
+                const critBonus = ev.reward * 2; // total = 3× (1× already given)
+                this.gameState.addMoney(critBonus);
+                this.gameState.addScore(critBonus);
+            }
+
+            // ── Adrenaline mode bonus (health ≤ 30%: +50% per kill) ───────
+            if (this._adrenMode) {
+                const adrenBonus = Math.round(ev.reward * 0.5);
+                this.gameState.addMoney(adrenBonus);
+                this.gameState.addScore(adrenBonus);
+            }
+
+            // ── Achievement checks ─────────────────────────────────────────
+            if (this.gameState.getInterceptionsCount() === 1) this._unlock('first_blood');
+            if (this._killStreak === 5)  this._unlock('sharpshooter');
+            if (this._killStreak === 10) this._unlock('iron_dome');
+            if (this.gameState.getMoneySpent() >= 10000) this._unlock('big_spender');
+
+            // ── Combo jackpot — spawn a powerup at streak milestones ───────
+            if ((this._killStreak === 5 || this._killStreak === 10) && ev.x !== undefined) {
+                this._spawnPowerupAt(ev.x, ev.y);
+            }
+
             // ── Floating kill text ─────────────────────────────────────────
             if (ev.x !== undefined && ev.y !== undefined) {
-                const dispText = streakBonus > 0
-                    ? `+$${ev.reward + streakBonus} ×${this._killStreak}`
-                    : `+$${ev.reward}`;
-                const col = this._killStreak >= 8 ? '#ff6666'
+                const totalReward = ev.reward + streakBonus + (isCritical ? ev.reward * 2 : 0)
+                    + (this._adrenMode ? Math.round(ev.reward * 0.5) : 0);
+                let dispText = `+$${totalReward}`;
+                if (isCritical)              dispText = `⚡ CRITICAL! +$${totalReward}`;
+                else if (this._adrenMode)    dispText = `🔥 +$${totalReward}`;
+                else if (streakBonus > 0)    dispText = `+$${totalReward} ×${this._killStreak}`;
+                const col = isCritical ? '#ffffff'
+                    : this._adrenMode ? '#ff6666'
+                    : this._killStreak >= 8 ? '#ff4444'
                     : this._killStreak >= 5 ? '#ffaa00'
                     : this._killStreak >= 3 ? '#ffdd00'
                     : '#44ff88';
@@ -499,9 +564,9 @@ export class Game {
                     text: dispText,
                     wx: ev.x + (Math.random() - 0.5) * 0.03,
                     wy: ev.y,
-                    age: 0, maxAge: 1.8,
+                    age: 0, maxAge: isCritical ? 2.4 : 1.8,
                     color: col,
-                    size: Math.min(9 + this._killStreak * 0.5, 15),
+                    size: isCritical ? 16 : Math.min(9 + this._killStreak * 0.5, 15),
                 });
             }
 
@@ -577,7 +642,14 @@ export class Game {
             this.gameState.addScore(bonus);
             const label = perfectWave ? `◈ PERFECT DEFENSE! +$${bonus}` : `Wave cleared! +$${bonus}`;
             this.onLog?.(label, 'success');
-            if (perfectWave) this.sound?.speak('Perfect defense. No targets penetrated our airspace.');
+            if (perfectWave) {
+                this._consecutivePerfect++;
+                this.sound?.speak('Perfect defense. No targets penetrated our airspace.');
+                this._unlock('perfect_guard');
+                if (this._consecutivePerfect >= 3) this._unlock('untouchable');
+            } else {
+                this._consecutivePerfect = 0;
+            }
             this.sound?.playSuccess();
             this.waveCleared = true;
         }
@@ -600,57 +672,54 @@ export class Game {
                 this.sound?.playAirRaidSiren();
                 this.sound?.speak('Border alert \u2014 missile entering Qatar airspace.', true);
 
-                // Allied support: auto-destroy ADIZ crossers
-                if (this._alliedSupportActive && missile.active) {
+                // Allied support / Shield: auto-destroy ADIZ crossers
+                if ((this._alliedSupportActive || this._shieldActive) && missile.active) {
                     missile.active = false;
-                    const reward = missile.reward || 0;
-                    this.gameState.addMoney(reward);
+                    const isShield = !this._alliedSupportActive && this._shieldActive;
+                    const col = isShield ? '#38bdf8' : '#00aaff';
                     this.gameState.addInterception();
                     const d = Math.sqrt(missile.x * missile.x + missile.y * missile.y);
-                    this.gameState.addScore(Math.round(reward * (1 + d * 4)));
-                    this.onInterception?.(reward, missile.type);
-                    this.entityManager.addExplosion(
-                        new Explosion(missile.x, missile.y, 'intercept', '#00aaff')
-                    );
+                    this.gameState.addScore(Math.round((missile.reward || 0) * (1 + d * 4)));
+                    this.onInterception?.(0, missile.type);
+                    this.entityManager.addExplosion(new Explosion(missile.x, missile.y, 'intercept', col));
                     this.sound?.playInterceptionExplosion();
                     this.sound?.playKillSfx();
-                    this.onLog?.(`◈ ALLIED INTERCEPT — ${missile.type} neutralized at ADIZ  +$${missile.reward || 0}`, 'success');
+                    const tag = isShield ? '◈ SHIELD' : '◈ ALLIED';
+                    this.onLog?.(`${tag} INTERCEPT — ${missile.type} neutralized at ADIZ`, 'success');
                 }
             }
         });
 
-        // Allied support: per-frame sweep — destroy ALL active enemies inside ADIZ
-        if (this._alliedSupportActive) {
-            // Missiles already inside ADIZ (not caught by checkBorderCrossings ENTRY event)
+        // Allied support + Shield: per-frame sweep — destroy all active enemies inside ADIZ
+        const _autoIntercept = this._alliedSupportActive || this._shieldActive;
+        if (_autoIntercept) {
+            const _aic = this._shieldActive && !this._alliedSupportActive ? '#38bdf8' : '#00aaff';
+            const _tag = this._shieldActive && !this._alliedSupportActive ? '◈ SHIELD' : '◈ ALLIED';
             this.entityManager.getMissiles().forEach(missile => {
                 if (!missile.active) return;
                 if (!this.radar.isInsideQatar(missile.x, missile.y)) return;
                 missile.active = false;
-                const reward = missile.reward || 0;
-                this.gameState.addMoney(reward);
                 this.gameState.addInterception();
                 const d = Math.sqrt(missile.x * missile.x + missile.y * missile.y);
-                this.gameState.addScore(Math.round(reward * (1 + d * 4)));
-                this.onInterception?.(reward, missile.type);
-                this.entityManager.addExplosion(new Explosion(missile.x, missile.y, 'intercept', '#00aaff'));
+                this.gameState.addScore(Math.round((missile.reward || 0) * (1 + d * 4)));
+                this.onInterception?.(0, missile.type);
+                this.entityManager.addExplosion(new Explosion(missile.x, missile.y, 'intercept', _aic));
                 this.sound?.playInterceptionExplosion();
                 this.sound?.playKillSfx();
-                this.onLog?.(`◈ ALLIED INTERCEPT — ${missile.type} neutralized at ADIZ  +$${reward}`, 'success');
+                this.onLog?.(`${_tag} INTERCEPT — ${missile.type} neutralized at ADIZ`, 'success');
             });
-            // Bombers
             this.entityManager.getBombers().forEach(bomber => {
                 if (!bomber.active) return;
                 if (!this.radar.isInsideQatar(bomber.x, bomber.y)) return;
                 bomber.damage(9999);
-                this.onLog?.('◈ ALLIED INTERCEPT — Bomber neutralized at ADIZ', 'success');
+                this.onLog?.(`${_tag} INTERCEPT — Bomber neutralized at ADIZ`, 'success');
             });
-            // Enemy fighters
             this.entityManager.getEnemyFighters().forEach(fighter => {
                 if (!fighter.active) return;
                 if (!this.radar.isInsideQatar(fighter.x, fighter.y)) return;
                 fighter.active = false;
-                this.entityManager.addExplosion(new Explosion(fighter.x, fighter.y, 'intercept', '#00aaff'));
-                this.onLog?.('◈ ALLIED INTERCEPT — Bogey neutralized at ADIZ', 'success');
+                this.entityManager.addExplosion(new Explosion(fighter.x, fighter.y, 'intercept', _aic));
+                this.onLog?.(`${_tag} INTERCEPT — Bogey neutralized at ADIZ`, 'success');
             });
         }
 
@@ -823,6 +892,79 @@ export class Game {
             ctx.restore();
         }
 
+        // ── Adrenaline mode — pulsing red border ───────────────────────────
+        if (this._adrenMode) {
+            const pulse = 0.25 + 0.25 * Math.sin(this._gameTime * 9);
+            ctx.save();
+            ctx.strokeStyle = `rgba(239,68,68,${pulse.toFixed(2)})`;
+            ctx.lineWidth   = 14;
+            ctx.strokeRect(0, 0, W, H);
+            ctx.fillStyle   = 'rgba(239,68,68,0.85)';
+            ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 16;
+            ctx.font        = 'bold 11px monospace';
+            ctx.textAlign   = 'center';
+            ctx.fillText('🔥 ADRENALINE MODE — +50% KILL REWARDS', W / 2, 175);
+            ctx.restore();
+        }
+
+        // ── Overclock indicator ────────────────────────────────────────────
+        if (this._overclockActive) {
+            ctx.save();
+            ctx.fillStyle   = 'rgba(0,255,200,0.90)';
+            ctx.shadowColor = '#00ffcc'; ctx.shadowBlur = 12;
+            ctx.font        = 'bold 10px monospace';
+            ctx.textAlign   = 'center';
+            ctx.fillText(`⚡ OVERCLOCK ACTIVE ${Math.ceil(this._overclockTimer)}s — 2× INTERCEPT SPEED`, W / 2, 191);
+            ctx.restore();
+        }
+
+        // ── Achievement toasts (slide in from right) ───────────────────────
+        for (let i = 0; i < this._achieveToasts.length; i++) {
+            const t = this._achieveToasts[i];
+            const slideIn = Math.min(1, t.age / 0.35);
+            const fade    = t.age > 4.5 ? Math.max(0, 1 - (t.age - 4.5) / 1.0) : 1.0;
+            const alpha   = slideIn * fade;
+            const bw = 200, bh = 54, br = 6;
+            const bx = W - 16 - bw + (1 - slideIn) * (bw + 20);
+            const by = H - 170 - i * 64;
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            // Background card
+            ctx.fillStyle   = 'rgba(8,12,28,0.93)';
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth   = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(bx + br, by); ctx.lineTo(bx + bw - br, by);
+            ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + br);
+            ctx.lineTo(bx + bw, by + bh - br);
+            ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - br, by + bh);
+            ctx.lineTo(bx + br, by + bh);
+            ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - br);
+            ctx.lineTo(bx, by + br);
+            ctx.quadraticCurveTo(bx, by, bx + br, by);
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            // Gold accent bar at top
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(bx + br, by, bw - br * 2, 3);
+            // Title
+            ctx.fillStyle   = '#fcd34d';
+            ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 8;
+            ctx.font        = 'bold 9px monospace';
+            ctx.textAlign   = 'left';
+            ctx.fillText(t.title, bx + 10, by + 18);
+            // Sub
+            ctx.fillStyle  = '#94a3b8'; ctx.shadowBlur = 0;
+            ctx.font       = '7px monospace';
+            ctx.fillText(t.sub, bx + 10, by + 31);
+            // Badge
+            ctx.fillStyle  = '#f59e0b';
+            ctx.font       = 'bold 6px monospace';
+            ctx.textAlign  = 'right';
+            ctx.fillText('ACHIEVEMENT', bx + bw - 8, by + 44);
+            ctx.restore();
+        }
+
         ctx.restore();
     }
 
@@ -915,6 +1057,11 @@ export class Game {
                 }
             }
         }
+
+        // Wave survival achievements
+        if (waveNum === 10) this._unlock('veteran');
+        if (waveNum === 20) this._unlock('elite');
+        if (waveNum === 5)  this._unlock('survivor');
 
         // Hornet unlock at wave 8
         if (waveNum === 8) {
@@ -1478,7 +1625,10 @@ export class Game {
         return { ok: true };
     }
 
-    addInterceptor(interceptor) { this.entityManager.addInterceptor(interceptor); }
+    addInterceptor(interceptor) {
+        if (this._overclockActive) interceptor.speed = (interceptor.speed || 0.5) * 2.0;
+        this.entityManager.addInterceptor(interceptor);
+    }
     addMissile(m)               { this.entityManager.addMissile(m); }
 
     getMissilesNear(worldX, worldY, threshold = 0.07) {
@@ -1617,7 +1767,7 @@ export class Game {
         this._ewTimer  = this._ewDuration;
         // Apply jam to all current missiles
         for (const m of this.entityManager.getMissiles()) m._jamMult = 0.40;
-        this.onLog?.('⚡ EW JAMMER ACTIVE — All missiles at 40% speed for 10s', 'success');
+        this.onLog?.('⚡ EW JAMMER ACTIVE — All missiles at 40% speed for 3 minutes!', 'success');
         this.sound?.speak('Electronic warfare jamming activated.');
         return { ok: true };
     }
@@ -1661,6 +1811,7 @@ export class Game {
     isEWReady()         { return !this._ewActive && this._ewCooldown <= 0; }
     isEWActive()        { return this._ewActive; }
     getEWCooldown()     { return Math.ceil(this._ewCooldown); }
+    getEWTimer()        { return this._ewTimer; }
     getBatteryStatus()  { return { ...this._batteryDisabledWaves }; }
     isBatteryAvailable(type) {
         return this.radar.getBatteries()
@@ -1668,15 +1819,41 @@ export class Game {
             .some(b => (this._batteryDisabledWaves[b.id] || 0) <= 0);
     }
 
+    // ── Achievement system ─────────────────────────────────────────────────
+    _unlock(id) {
+        if (this._achievementsEarned.has(id)) return;
+        this._achievementsEarned.add(id);
+        const LABELS = {
+            first_blood:   { title: '🎯 FIRST INTERCEPT',    sub: 'First threat destroyed' },
+            sharpshooter:  { title: '⚡ SHARPSHOOTER',       sub: '5-kill streak' },
+            iron_dome:     { title: '◈ IRON DOME',           sub: '10-kill streak' },
+            perfect_guard: { title: '★ PERFECT DEFENSE',     sub: 'Wave with zero hits' },
+            untouchable:   { title: '◉ UNTOUCHABLE',         sub: '3 consecutive perfect waves' },
+            survivor:      { title: '◎ SURVIVOR',            sub: 'Reached wave 5' },
+            veteran:       { title: '⊛ VETERAN COMMANDER',   sub: 'Reached wave 10' },
+            elite:         { title: '⊛ ELITE GUARDIAN',      sub: 'Reached wave 20' },
+            big_spender:   { title: '💰 WAR ECONOMY',        sub: '$10,000 invested in defense' },
+        };
+        const a = LABELS[id];
+        if (!a) return;
+        this._achieveToasts.push({ title: a.title, sub: a.sub, age: 0, maxAge: 5.5 });
+        this.onLog?.(`◈ ACHIEVEMENT UNLOCKED: ${a.title}`, 'success');
+    }
+
     // ── Powerup system ──
     _spawnPowerup() {
-        const types = Object.keys(POWERUP_TYPES);
-        // Weighted: funds most common
-        const pool = [...types, 'funds', 'funds', 'repair'];
-        const type = pool[Math.floor(Math.random() * pool.length)];
-        const p = new Powerup(type);
+        const p = new Powerup(); // uses weighted TYPE_POOL from Powerup.js
         this.entityManager.addPowerup(p);
-        this.onLog?.(`◈ Resource drop incoming: ${POWERUP_TYPES[type].label} (${POWERUP_TYPES[type].desc})`, 'info');
+        this.onLog?.(`◈ Resource drop incoming: ${p.config.label} (${p.config.desc})`, 'info');
+    }
+
+    _spawnPowerupAt(wx, wy) {
+        const p = new Powerup();
+        p.x = wx + (Math.random() - 0.5) * 0.08;
+        p.y = wy + (Math.random() - 0.5) * 0.08;
+        p.vx = 0; p.vy = 0.008; // slow drift downward
+        this.entityManager.addPowerup(p);
+        this.onLog?.(`🎁 COMBO JACKPOT — ${p.config.label} dropped!`, 'success');
     }
 
     collectPowerup(powerup) {
@@ -1707,13 +1884,36 @@ export class Game {
             case 'shield':
                 this._shieldActive = true;
                 this._shieldTimer  = cfg.duration;
-                this.onLog?.(`◈ Defense shield active — ${cfg.duration}s damage immunity!`, 'success');
-                this.sound?.speak('Damage shield activated.');
+                // Immediately clear any missiles already inside ADIZ
+                this.entityManager.getMissiles().forEach(m => {
+                    if (!m.active || !this.radar.isInsideQatar(m.x, m.y)) return;
+                    m.active = false;
+                    this.gameState.addInterception();
+                    this.entityManager.addExplosion(new Explosion(m.x, m.y, 'intercept', '#38bdf8'));
+                    this.sound?.playInterceptionExplosion();
+                });
+                this.onLog?.(`◈ DEFENSE SHIELD ACTIVE — ${cfg.duration}s damage immunity + ADIZ auto-intercept!`, 'success');
+                this.sound?.speak('Defense shield activated. ADIZ auto-protect enabled.');
                 break;
             case 'intel':
                 this.entityManager.clearGhosts();
                 this.onLog?.('◎ Intel burst — all radar ghosts cleared!', 'success');
                 this.sound?.speak('Radar contacts resolved.');
+                break;
+            case 'overclock':
+                this._overclockActive = true;
+                this._overclockTimer  = cfg.duration;
+                this.onLog?.(`⚡ OVERCLOCK ACTIVE — interceptors at 2× speed for ${cfg.duration}s!`, 'success');
+                this.sound?.speak('Systems overclocked. Maximum intercept velocity.');
+                break;
+            case 'ammo':
+                this.gameState.addMoney(cfg.amount);
+                // Reset key cooldowns
+                this.laserCooldown       = 0;
+                this._ewCooldown         = 0;
+                this.jetDispatchCooldown = 0;
+                this.onLog?.(`◉ RESUPPLY — +$${cfg.amount} + cooldowns reset!`, 'success');
+                this.sound?.speak('Resupply complete. Systems ready.');
                 break;
         }
     }
@@ -1729,8 +1929,10 @@ export class Game {
         return bestDist < 0.10 ? nearest : null;
     }
 
-    isShieldActive()  { return this._shieldActive; }
-    getShieldTimer()  { return Math.ceil(this._shieldTimer); }
+    isShieldActive()      { return this._shieldActive; }
+    getShieldTimer()      { return Math.ceil(this._shieldTimer); }
+    isOverclockActive()   { return this._overclockActive; }
+    isAdrenMode()         { return this._adrenMode; }
 
     // Nearest friendly unit (jet or hornet drone) within click range
 }

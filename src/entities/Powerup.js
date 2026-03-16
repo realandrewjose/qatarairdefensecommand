@@ -1,12 +1,14 @@
 export const POWERUP_TYPES = {
-    funds:  { icon: '$', label: 'EMERGENCY FUNDS',  color: '#f59e0b', desc: '+$800',         amount: 800 },
-    repair: { icon: '+', label: 'REPAIR CREW',      color: '#22c55e', desc: '+20 HP',         amount: 20  },
-    shield: { icon: '◈', label: 'DEFENSE SHIELD',  color: '#38bdf8', desc: '8s IMMUNE',      duration: 8 },
-    intel:  { icon: '◎', label: 'INTEL BURST',     color: '#a78bfa', desc: 'GHOST CLEAR'                 },
+    funds:     { icon: '$', label: 'EMERGENCY FUNDS',  color: '#f59e0b', desc: '+$1200',        amount: 1200 },
+    repair:    { icon: '+', label: 'REPAIR CREW',      color: '#22c55e', desc: '+25 HP',         amount: 25   },
+    shield:    { icon: '◈', label: 'DEFENSE SHIELD',  color: '#38bdf8', desc: '30s SHIELD',     duration: 30 },
+    intel:     { icon: '◎', label: 'INTEL BURST',     color: '#a78bfa', desc: 'GHOST CLEAR'                  },
+    overclock: { icon: '⚡', label: 'OVERCLOCK',       color: '#00ffcc', desc: '2× SPEED 20s',  duration: 20 },
+    ammo:      { icon: '◉', label: 'RESUPPLY',        color: '#fbbf24', desc: '+$600 RESET CD', amount: 600  },
 };
 
-// Weighted type pool: funds appear more often
-const TYPE_POOL = ['funds', 'funds', 'funds', 'repair', 'repair', 'shield', 'intel'];
+// Weighted type pool: funds most common, overclock/ammo rarer
+const TYPE_POOL = ['funds', 'funds', 'funds', 'repair', 'repair', 'shield', 'intel', 'overclock', 'ammo', 'ammo'];
 
 let _powerupIdCounter = 0;
 

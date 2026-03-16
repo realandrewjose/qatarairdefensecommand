@@ -42,6 +42,16 @@ const KILL_DISPLAY = {
     enemy_fighter: { label: 'BOGEY',      color: '#ff4444' },
 };
 
+// ── Cookie helpers for persistent high score ────────────────────────────────
+function _setCookie(name, val, days = 730) {
+    const exp = new Date(Date.now() + days * 86400000).toUTCString();
+    document.cookie = `${name}=${encodeURIComponent(val)};expires=${exp};path=/;SameSite=Lax`;
+}
+function _getCookie(name) {
+    const m = document.cookie.split('; ').find(r => r.startsWith(name + '='));
+    return m ? decodeURIComponent(m.split('=')[1]) : null;
+}
+
 export class UIManager {
     constructor(game, inputHandler, soundManager) {
         this.game = game;
@@ -51,6 +61,7 @@ export class UIManager {
         this._impactCounts = {}; // hits taken by missile type
         this._totalImpacts = 0;
         this._waveTimer    = null;
+        this._highScore    = parseInt(_getCookie('qad_hs') || '0', 10);
 
         this._buildArsenal();
         this._buildThreatLegend();
@@ -76,10 +87,13 @@ export class UIManager {
             frigateBtn:       document.getElementById('frigateBtn'),
             laserItem:        document.querySelector('.arsenal-item[data-type="laser"]'),
             arsenalItems:     [...document.querySelectorAll('.arsenal-item')],
+            bestDisplay:      document.getElementById('bestDisplay'),
         };
 
         // Previous values — only write to DOM when value changes
-        this._prev = { money: null, wave: null, score: null, threats: null, healthPct: null, shieldActive: null };
+        this._prev = { money: null, wave: null, score: null, threats: null, healthPct: null, shieldActive: null, best: null };
+        // Init best display from cookie
+        if (this._els.bestDisplay) this._els.bestDisplay.textContent = this._highScore.toLocaleString();
 
         // Wire input log callback
         this.input.onLog = (msg, type) => this.log(msg, type);
@@ -276,6 +290,14 @@ export class UIManager {
         mkRow('#ffdd44', '✈', 'QAF Fighter (QAF-#)', 'Hunts fighters & missiles');
         mkRow('#ffaa22', '◈', 'Hornet UAV (UAV-##)', 'Kamikaze vs drones/loiters');
         mkRow('#44aaff', '⚓', 'Frigate (QN-#)',      'Anti-cruise/anti-ship; no hypersonic');
+
+        mkSep('Powerup Drops — click to collect');
+        mkRow('#f59e0b', '$', 'Emergency Funds',   '+$1200 — click to collect');
+        mkRow('#22c55e', '+', 'Repair Crew',        '+25 HP + resets all cooldowns');
+        mkRow('#38bdf8', '◈', 'Defense Shield',     '30s ADIZ auto-intercept + damage block');
+        mkRow('#00ffcc', '⚡', 'OVERCLOCK',          '20s — interceptors at 2× speed');
+        mkRow('#fbbf24', '◉', 'Resupply',           '+$600 + resets weapon cooldowns');
+        mkRow('#a78bfa', '◎', 'Intel Burst',        'Clears all radar ghost decoys');
     }
 
     _updateHUD() {
@@ -301,6 +323,12 @@ export class UIManager {
 
         const score = gs.getScore().toLocaleString();
         if (score !== prev.score) { prev.score = score; if (els.scoreDisplay) els.scoreDisplay.textContent = score; }
+        // Best score — update live if player beats their record mid-game
+        if (els.bestDisplay) {
+            const live = gs.getScore();
+            if (live > this._highScore) { this._highScore = live; _setCookie('qad_hs', live); }
+            els.bestDisplay.textContent = this._highScore.toLocaleString();
+        }
 
         // Live kills + hits counters
         setText(els.interceptionsDisplay, gs.getInterceptionsCount());
@@ -341,13 +369,16 @@ export class UIManager {
             const ewCooldown = this.game.getEWCooldown?.() || 0;
             const ewReady    = this.game.isEWReady?.();
             if (ewActive) {
-                setText(els.ewBtn, '⚡ EW JAMMING ACTIVE');
+                const ewTimer = this.game.getEWTimer?.() || 0;
+                const ewMins  = Math.floor(ewTimer / 60), ewSecs = Math.ceil(ewTimer % 60);
+                setText(els.ewBtn, `⚡ EW JAMMING ${ewMins}:${String(ewSecs).padStart(2,'0')}`);
                 els.ewBtn.style.opacity = '0.85';
             } else if (!ewReady) {
-                setText(els.ewBtn, `⚡ [9] EW JAM RECHARGING ${ewCooldown}s`);
+                const cdMins = Math.floor(ewCooldown / 60), cdSecs = Math.ceil(ewCooldown % 60);
+                setText(els.ewBtn, `⚡ [9] EW RECHARGING ${cdMins}:${String(cdSecs).padStart(2,'0')}`);
                 els.ewBtn.style.opacity = '0.55';
             } else {
-                setText(els.ewBtn, '⚡ [9] EW JAM ($300)');
+                setText(els.ewBtn, '⚡ [9] EW JAM ($300) 3MIN');
                 els.ewBtn.style.opacity = '1';
             }
         }
@@ -437,7 +468,7 @@ export class UIManager {
                 setText(els.frigateBtn, `⚓ [7] RECHARGING ${fCooldown}s`);
                 els.frigateBtn.style.opacity = '0.55';
             } else {
-                setText(els.frigateBtn, '⚓ [7] DEPLOY 5 FRIGATES ($1200)');
+                setText(els.frigateBtn, '⚓ [7] DEPLOY 7 FRIGATES ($1200)');
                 els.frigateBtn.style.opacity = '1';
             }
         }
@@ -591,7 +622,22 @@ export class UIManager {
     _showGameOver(gs) {
         clearInterval(this._updateInterval);
         const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-        set('finalMoney', gs.getScore().toLocaleString()); // score — no $ prefix
+
+        // High score (cookie)
+        const score = gs.getScore();
+        const isNewBest = score > this._highScore;
+        if (isNewBest) {
+            this._highScore = score;
+            _setCookie('qad_hs', score);
+        }
+        const hsEl = document.getElementById('finalHighScore');
+        if (hsEl) {
+            hsEl.textContent = this._highScore.toLocaleString()
+                + (isNewBest ? '  ★ NEW BEST!' : '');
+            if (isNewBest) hsEl.style.color = '#fcd34d';
+        }
+
+        set('finalMoney', score.toLocaleString()); // score — no $ prefix
         set('finalInterceptions', gs.getInterceptionsCount());
         set('finalWaves', gs.getWaveCount());
         const ratio = this.game.getExchangeRatio?.();
