@@ -21,24 +21,20 @@ export default (env, argv) => {
         mode:    isProd ? 'production' : 'development',
         devtool: isProd ? 'source-map' : 'eval-source-map',
 
-        // webpack-dev-server replaces `python -m http.server 8000`
         devServer: {
-            port:   8000,
+            port:   8080,   // 8080 so it doesn't clash with python on 8000
             hot:    true,
             open:   true,
             static: path.resolve(__dirname, 'dist'),
         },
 
         plugins: [
-            // Processes index.html and injects the bundle <script> tag
             new HtmlWebpackPlugin({
                 template:      './index.html',
                 filename:      'index.html',
                 inject:        'body',
                 scriptLoading: 'defer',
             }),
-
-            // Copy static assets as-is into dist/
             new CopyWebpackPlugin({
                 patterns: [
                     { from: 'assets', to: 'assets' },
@@ -48,9 +44,9 @@ export default (env, argv) => {
         ],
 
         performance: {
-            hints:             isProd ? 'warning' : false,
-            maxAssetSize:      8 * 1024 * 1024,
-            maxEntrypointSize: 8 * 1024 * 1024,
+            hints:             false,
+            maxAssetSize:      10 * 1024 * 1024,
+            maxEntrypointSize: 10 * 1024 * 1024,
         },
     };
 };

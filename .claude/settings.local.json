@@ -38,7 +38,8 @@
       "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\(''''version'''',''''?''''\\)\\)\")",
       "Bash(node_modules/electron/dist/electron.exe --version)",
       "Bash(npm install:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }
