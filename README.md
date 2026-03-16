@@ -2,6 +2,10 @@
 
 A real-time tactical air defense game set over a live radar map of Qatar. Defend the peninsula against escalating waves of enemy missiles, drones, and bombers using a layered arsenal of interceptors — from Patriot batteries to the Iron Beam laser and C-RAM Phalanx guns.
 
+Run as web app: https://realandrewjose.github.io/qatarairdefensecommand/
+
+Download and play as a native game on Windows: https://github.com/realandrewjose/qatarairdefensecommand/releases/tag/Windows
+
 ---
 
 ## Overview
