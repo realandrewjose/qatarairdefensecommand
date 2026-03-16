@@ -10,7 +10,7 @@ const _G = {
 
 // Zone A — Persian Gulf, east of Qatar  (direct route from Al Khor)
 // Zone B — Gulf of Bahrain / near Bahrain  (must round the northern tip)
-// Zone C removed — those coordinates land on Saudi soil; no safe sea access.
+// Zone C — Just north/NE of Qatar's peninsula tip (open Gulf water)
 const PATROL_WAYPOINTS = [
     { x:  0.26, y: -0.32, route: [] },          // Zone A — NE offshore
     { x:  0.38, y: -0.10, route: [] },          // Zone A — central Gulf
@@ -18,6 +18,8 @@ const PATROL_WAYPOINTS = [
     { x: -0.30, y: -0.30, route: [_G.NE, _G.N, _G.NW] }, // Zone B — Gulf of Bahrain
     { x: -0.36, y: -0.20, route: [_G.NE, _G.N, _G.NW] }, // Zone B — near Bahrain
     { x: -0.32, y: -0.38, route: [_G.NE, _G.N, _G.NW] }, // Zone B — northern GoB
+    { x:  0.07, y: -0.44, route: [] },          // Zone C — north of peninsula tip
+    { x:  0.15, y: -0.41, route: [] },          // Zone C — NE of peninsula tip
 ];
 
 // ── Land-avoidance helper ─────────────────────────────────────────────────────

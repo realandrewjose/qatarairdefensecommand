@@ -161,6 +161,12 @@ export class Game {
         // Kill earnings tracking (for exchange ratio)
         this._killEarnings = 0;
 
+        // Kill streak + floating text
+        this._killStreak    = 0;
+        this._lastKillTime  = -10;
+        this._gameTime      = 0;
+        this._floatTexts    = [];
+
         // Shield (powerup)
         this._shieldActive   = false;
         this._shieldTimer    = 0;
@@ -172,6 +178,9 @@ export class Game {
         this._diffStateDuration = this._rollStateDuration('BUILD');
         this._peakProfile       = null;
         this._lastPeakProfile   = null;
+        // Parabolic envelope — each successive peak is higher than the last
+        this._peakCount         = 0;   // total peaks completed so far
+        this._lastPeakIntensity = 1.0; // used to scale post-peak lull depth
 
         // Player telemetry — feeds peak-profile selection bias
         this._telemetry = {
@@ -239,6 +248,11 @@ export class Game {
     update(deltaTime) {
         if (this.paused || this.gameState.isGameOver()) return;
 
+        this._gameTime += deltaTime;
+        // Age / prune floating kill texts
+        for (const ft of this._floatTexts) ft.age += deltaTime;
+        this._floatTexts = this._floatTexts.filter(ft => ft.age < ft.maxAge);
+
         // ── Heartbeat state machine ──────────────────────────────────────────
         this._diffStateTimer += deltaTime;
         if (this._diffStateTimer >= this._diffStateDuration) {
@@ -247,10 +261,16 @@ export class Game {
             const nextState = DIFF_CYCLE[(idx + 1) % DIFF_CYCLE.length];
 
             if (nextState === 'PEAK') {
+                this._peakCount++;
+                // Parabolic envelope: each peak is 18% more intense than the last, capped at ×3.0
+                this._lastPeakIntensity = Math.min(1.0 + (this._peakCount - 1) * 0.18, 3.0);
                 this._peakProfile    = this._nextPeakProfile();
                 this._tgpPeakBudget  = this._tgp;
                 this._tgp            = 0;
-                this.onLog?.(`⚠ ${this._peakProfile.label} — PEAK ASSAULT INCOMING!`, 'error');
+                const peakLabel = this._peakCount > 1
+                    ? `⚠ PEAK #${this._peakCount} — ${this._peakProfile.label} (×${this._lastPeakIntensity.toFixed(1)})`
+                    : `⚠ ${this._peakProfile.label} — PEAK ASSAULT INCOMING!`;
+                this.onLog?.(peakLabel, 'error');
                 if (this._peakProfile.id === 'SWARM') {
                     this.sound?.speak('Warning. Drone swarm inbound. Massive drone threat detected. All units engage.', true);
                 } else {
@@ -258,7 +278,9 @@ export class Game {
                 }
             } else if (nextState === 'DRAIN') {
                 this._peakProfile = null;
-                this.onLog?.('◈ Enemy activity subsiding — resupply window open.', 'success');
+                // Deeper lull after more intense peaks
+                const lullDepth = Math.min(this._lastPeakIntensity * 1.2, 2.5);
+                this.onLog?.(`◈ Enemy activity subsiding — lull depth ×${lullDepth.toFixed(1)}. Resupply now.`, 'success');
                 this.sound?.speak('Lull in enemy activity. Resupply now.');
             }
 
@@ -437,6 +459,52 @@ export class Game {
             this.sound?.playInterceptionExplosion();
             this.sound?.playKillSfx();
 
+            // ── Kill streak ────────────────────────────────────────────────
+            if (this._gameTime - this._lastKillTime < 2.8) {
+                this._killStreak++;
+            } else {
+                this._killStreak = 1;
+            }
+            this._lastKillTime = this._gameTime;
+
+            let streakBonus = 0;
+            if (this._killStreak >= 8) {
+                streakBonus = ev.reward;
+                if (this._killStreak % 4 === 0) {
+                    this.onLog?.(`🔥 ${this._killStreak}-KILL STREAK! +$${streakBonus} BONUS`, 'success');
+                    this.sound?.speak('Exceptional interception rate. Keep it up.');
+                }
+            } else if (this._killStreak === 5) {
+                streakBonus = Math.round(ev.reward * 0.75);
+                this.onLog?.(`⚡ 5-KILL COMBO! +$${streakBonus} BONUS`, 'success');
+            } else if (this._killStreak === 3) {
+                streakBonus = Math.round(ev.reward * 0.5);
+                this.onLog?.(`⚡ 3-KILL COMBO! +$${streakBonus} BONUS`, 'success');
+            }
+            if (streakBonus > 0) {
+                this.gameState.addMoney(streakBonus);
+                this.gameState.addScore(streakBonus * 2);
+            }
+
+            // ── Floating kill text ─────────────────────────────────────────
+            if (ev.x !== undefined && ev.y !== undefined) {
+                const dispText = streakBonus > 0
+                    ? `+$${ev.reward + streakBonus} ×${this._killStreak}`
+                    : `+$${ev.reward}`;
+                const col = this._killStreak >= 8 ? '#ff6666'
+                    : this._killStreak >= 5 ? '#ffaa00'
+                    : this._killStreak >= 3 ? '#ffdd00'
+                    : '#44ff88';
+                this._floatTexts.push({
+                    text: dispText,
+                    wx: ev.x + (Math.random() - 0.5) * 0.03,
+                    wy: ev.y,
+                    age: 0, maxAge: 1.8,
+                    color: col,
+                    size: Math.min(9 + this._killStreak * 0.5, 15),
+                });
+            }
+
             // Debris fallout: intercepts inside Qatar territory cause falling debris
             const debrisTypes = ['ballistic', 'mirv', 'hypersonic', 'maneuver'];
             if (ev.x !== undefined && debrisTypes.includes(ev.missileType) && this.radar.isInsideQatarStrict(ev.x, ev.y)) {
@@ -500,9 +568,16 @@ export class Game {
         // Wave-clear bonus: fires once when every spawned missile in this wave is gone
         if (this.waveSpawned > 0 && this.waveSpawned >= this.waveTotal
                 && !this.waveCleared && this.entityManager.countMissiles() === 0) {
-            const bonus = 100 + this.gameState.getLevel() * 20;
+            const lvl = this.gameState.getLevel();
+            const baseBonus = 150 + lvl * 30;
+            // Perfect-wave bonus: extra 50% if no hits taken this wave
+            const perfectWave = this._ddaWaveMisses === 0;
+            const bonus = perfectWave ? Math.round(baseBonus * 1.5) : baseBonus;
             this.gameState.addMoney(bonus);
-            this.onLog?.(`Wave cleared! +$${bonus}`, 'success');
+            this.gameState.addScore(bonus);
+            const label = perfectWave ? `◈ PERFECT DEFENSE! +$${bonus}` : `Wave cleared! +$${bonus}`;
+            this.onLog?.(label, 'success');
+            if (perfectWave) this.sound?.speak('Perfect defense. No targets penetrated our airspace.');
             this.sound?.playSuccess();
             this.waveCleared = true;
         }
@@ -717,6 +792,37 @@ export class Game {
             ctx.fillText(`\u2708 ${jets} JET(S) ACTIVE`, 10, H - 62);
         }
 
+        // ── Floating kill text ─────────────────────────────────────────────
+        for (const ft of this._floatTexts) {
+            const sp = this.radar.worldToScreen(ft.wx, ft.wy - ft.age * 0.10);
+            const alpha = Math.max(0, 1 - ft.age / ft.maxAge);
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.shadowColor = ft.color;
+            ctx.shadowBlur  = 8;
+            ctx.fillStyle   = ft.color;
+            ctx.font        = `bold ${Math.round(ft.size)}px monospace`;
+            ctx.textAlign   = 'center';
+            ctx.fillText(ft.text, sp.x, sp.y);
+            ctx.restore();
+        }
+
+        // ── Kill streak badge (top-center when streak ≥ 3) ────────────────
+        if (this._killStreak >= 3 && this._gameTime - this._lastKillTime < 4.0) {
+            const age = this._gameTime - this._lastKillTime;
+            const a   = age < 2.8 ? 1.0 : Math.max(0, 1 - (age - 2.8) / 1.2);
+            ctx.save();
+            ctx.globalAlpha = a;
+            const col = this._killStreak >= 8 ? '#ff4444'
+                : this._killStreak >= 5 ? '#ffaa00' : '#ffdd00';
+            ctx.font      = `bold 13px monospace`;
+            ctx.textAlign = 'center';
+            ctx.fillStyle = col;
+            ctx.shadowColor = col; ctx.shadowBlur = 12;
+            ctx.fillText(`🔥 ×${this._killStreak} STREAK`, W / 2, 160);
+            ctx.restore();
+        }
+
         ctx.restore();
     }
 
@@ -821,7 +927,7 @@ export class Game {
         // Frigate squadron unlock at wave 11
         if (waveNum === 11) {
             this._frigateUnlocked = true;
-            this.onLog?.('⚓ NAVAL FRIGATES UNLOCKED — [7] Deploy 5 frigates ($1200). Cruise & anti-ship kills only. Patrol Persian Gulf. RTB to Al Khor.', 'success');
+            this.onLog?.('⚓ NAVAL FRIGATES UNLOCKED — [7] Deploy 7 frigates ($1200). Cruise & anti-ship kills. Patrol Persian Gulf + northern tip. RTB to Al Khor.', 'success');
             this.sound?.speak('Qatar naval frigate squadron now available. Deploying from Al Khor.');
             this.onFrigateUnlocked?.();
         }
@@ -884,8 +990,22 @@ export class Game {
         const tgpBonus = (this._diffState === 'PEAK' && waveNum >= 10)
             ? Math.floor(Math.min(this._tgpPeakBudget, 200) / 22) : 0;
 
-        // Heartbeat macro rhythm × DDA micro tuning
-        const blendedMult = stateParams.countMult * ddaPreset.countMult;
+        // Parabolic envelope:
+        // - PEAK: grows every cycle (×1.0, ×1.18, ×1.36 …)
+        // - DRAIN / RECOVER: always reset to wave-1 baseline — fixed valley regardless of peak height
+        const isPeak = this._diffState === 'PEAK';
+        const isLull = this._diffState === 'DRAIN' || this._diffState === 'RECOVER';
+
+        let blendedMult;
+        if (isLull) {
+            // Hard-reset to wave-1 feel: ignore stateParams and DDA, use fixed low multiplier
+            blendedMult = 0.28;
+        } else if (isPeak) {
+            blendedMult = stateParams.countMult * ddaPreset.countMult * this._lastPeakIntensity;
+        } else {
+            // BUILD — normal ramp-up toward the coming peak
+            blendedMult = stateParams.countMult * ddaPreset.countMult;
+        }
 
         const [cmin, cmax] = cfg.baseCount;
         const rawCount = cmin + Math.floor(Math.random() * Math.max(1, cmax - cmin + 1));
@@ -901,8 +1021,12 @@ export class Game {
         // DDA interval weight scales 0→1 over first 12 waves so early waves aren't stretched
         const ddaIScale    = Math.min(waveNum / 12, 1.0);
         const blendedIAdd  = stateParams.intervalAdd + ddaPreset.intervalAdd * ddaIScale;
-        // Hard cap: never more than 22s gap regardless of DDA (prevents "frozen" feeling)
-        this.nextWaveIn    = Math.min(22, Math.max(6, baseInterval + blendedIAdd));
+        // Lull intervals scale with how intense the last peak was — deeper lulls after harder peaks
+        const lullIntervalBonus = isLull
+            ? Math.round((this._lastPeakIntensity - 1.0) * 8)  // up to +8s extra gap at max intensity
+            : 0;
+        // Hard cap: 28s max (lulls can push slightly higher than normal), 6s min
+        this.nextWaveIn    = Math.min(28, Math.max(6, baseInterval + blendedIAdd + lullIntervalBonus));
 
         // Apply TGP passive bonus from DDA preset
         this._tgpPassive = Math.max(0.5, this._tgpPassive + ddaPreset.tgpPassiveBonus);
@@ -1314,7 +1438,7 @@ export class Game {
         const cost = 1200;
         if (!this.gameState.spendMoney(cost)) return { ok: false, reason: 'funds' };
 
-        const FLEET_SIZE = 5;
+        const FLEET_SIZE = 7;
         this._frigateActive          = true;
         this._pendingFrigateLaunches = FLEET_SIZE;
 
@@ -1349,8 +1473,8 @@ export class Game {
                 }
             }, delay);
         }
-        this.onLog?.(`⚓ FRIGATE SQUADRON (${FLEET_SIZE} ships) deploying from Al Khor — $${cost}`, 'success');
-        this.sound?.speak('Naval frigate squadron deploying from Al Khor.');
+        this.onLog?.(`⚓ FRIGATE SQUADRON (${FLEET_SIZE} ships) deploying — 3 near northern tip — $${cost}`, 'success');
+        this.sound?.speak('Naval frigate squadron deploying. Seven ships underway.');
         return { ok: true };
     }
 
