@@ -36,7 +36,9 @@
       "WebFetch(domain:research.google)",
       "Bash(node -e \"const e = require\\(''electron''\\); console.log\\(typeof e, Object.keys\\(e || {}\\).slice\\(0,10\\)\\)\")",
       "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\(''''version'''',''''?''''\\)\\)\")",
-      "Bash(node_modules/electron/dist/electron.exe --version)"
+      "Bash(node_modules/electron/dist/electron.exe --version)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)"
     ]
   }
 }
