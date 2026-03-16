@@ -45,6 +45,7 @@ export class InputHandler {
         on('ewBtn',            () => this._dispatchEW());
 
         document.addEventListener('keydown', e => this._keydown(e));
+        this._initMusicPlayer();
 
         // Volume sliders
         const sfxSlider = document.getElementById('sfxVolumeSlider');
@@ -274,6 +275,8 @@ export class InputHandler {
     _pause() {
         const isPaused = this.game.togglePause();
         document.getElementById('pauseScreen')?.classList.toggle('hidden', !isPaused);
+        if (isPaused) this.sound?.pauseMusic?.();
+        else          this.sound?.resumeMusic?.();
     }
 
     _resume() {
@@ -318,10 +321,38 @@ export class InputHandler {
     }
 
     _toggleMusic() {
+        // Toggle the music player popup; wire controls on first open
+        const player = document.getElementById('musicPlayer');
+        if (!player) return;
+        const isHidden = player.classList.toggle('hidden');
+        if (!isHidden) this._updateMusicPlayer();
+    }
+
+    _updateMusicPlayer() {
         if (!this.sound) return;
-        const on = this.sound.toggleMusic();
-        const btn = document.getElementById('musicBtn');
-        if (btn) btn.textContent = on ? '♫ MUSIC: ON' : '♫ MUSIC: OFF';
+        const name = document.getElementById('musicTrackName');
+        const ppBtn = document.getElementById('musicPlayPauseBtn');
+        if (name)  name.textContent  = this.sound.currentTrackName?.() ?? '—';
+        if (ppBtn) ppBtn.textContent = this.sound.isMusicPlaying?.() ? '⏸' : '▶';
+    }
+
+    _initMusicPlayer() {
+        if (this._musicPlayerWired) return;
+        this._musicPlayerWired = true;
+        const on = (id, fn) => document.getElementById(id)?.addEventListener('click', fn);
+        on('musicPlayPauseBtn', () => {
+            if (!this.sound) return;
+            if (this.sound.isMusicPlaying?.()) this.sound.pauseMusic();
+            else this.sound.resumeMusic();
+            this._updateMusicPlayer();
+        });
+        on('musicNextBtn', () => { this.sound?.nextTrack?.(); this._updateMusicPlayer(); });
+        on('musicPrevBtn', () => { this.sound?.prevTrack?.(); this._updateMusicPlayer(); });
+        on('musicStopBtn', () => {
+            this.sound?.stopMusic?.();
+            document.getElementById('musicPlayer')?.classList.add('hidden');
+        });
+        if (this.sound) this.sound.onTrackChange = () => this._updateMusicPlayer();
     }
 
     _zoomIn() {

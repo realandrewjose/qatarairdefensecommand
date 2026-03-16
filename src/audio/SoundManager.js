@@ -128,8 +128,20 @@ export class SoundManager {
             this._trackIdx = (this._trackIdx + 1) % this._playlist.length;
             if (this._trackIdx === 0) this._playlist = this._shuffle(MUSIC_FILES);
             if (this.musicEnabled) this._playTrack();
+            this.onTrackChange?.();
         };
         this._musicAudio.play().catch(() => {});
+    }
+
+    pauseMusic()  { if (this._musicAudio) this._musicAudio.pause(); }
+    resumeMusic() { if (this._musicAudio && this.musicEnabled) this._musicAudio.play().catch(() => {}); }
+    stopMusic()   { if (this._musicAudio) { this._musicAudio.pause(); this._musicAudio.currentTime = 0; } }
+    nextTrack()   { this._trackIdx = (this._trackIdx + 1) % this._playlist.length; this._playTrack(); this.onTrackChange?.(); }
+    prevTrack()   { this._trackIdx = (this._trackIdx - 1 + this._playlist.length) % this._playlist.length; this._playTrack(); this.onTrackChange?.(); }
+    isMusicPlaying() { return this._musicAudio && !this._musicAudio.paused; }
+    currentTrackName() {
+        const f = this._playlist[this._trackIdx] ?? '';
+        return f.replace(/\.mp3$/i, '').replace(/\.m4a$/i, '');
     }
 
     toggleMusic() {
