@@ -54,6 +54,7 @@ export class UIManager {
 
         this._buildArsenal();
         this._buildThreatLegend();
+        this._initTabs();
 
         // Cache DOM element references once — never call getElementById in the hot update loop
         this._els = {
@@ -99,6 +100,31 @@ export class UIManager {
         this._updateHitBoard();
         this._updateInterval = setInterval(() => this._updateHUD(), 100);
         this.log('Qatar Air Defense System — ONLINE. Click a missile blip to intercept.', 'success');
+    }
+
+    _initTabs() {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const panel = btn.dataset.panel;
+                const tab   = btn.dataset.tab;
+
+                // Deactivate all buttons in this panel
+                document.querySelectorAll(`.tab-btn[data-panel="${panel}"]`)
+                    .forEach(b => b.classList.remove('active'));
+
+                // Hide all content in this panel
+                document.querySelectorAll(`.tab-btn[data-panel="${panel}"]`)
+                    .forEach(b => {
+                        const el = document.getElementById(`tab-${b.dataset.tab}`);
+                        if (el) el.classList.add('hidden');
+                    });
+
+                // Activate selected
+                btn.classList.add('active');
+                const content = document.getElementById(`tab-${tab}`);
+                if (content) content.classList.remove('hidden');
+            });
+        });
     }
 
     _buildArsenal() {

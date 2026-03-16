@@ -86,27 +86,40 @@
 
         </div>
 
-        <!-- Left: Arsenal -->
+        <!-- Left: Arsenal / Legend tabs -->
         <div class="panel panel-left">
-            <div class="panel-title">◈ INTERCEPTOR ARSENAL</div>
-            <div class="arsenal-list" id="arsenalList"></div>
-            <div class="panel-title" style="margin-top:12px">◈ THREAT LEGEND</div>
-            <div id="threatLegend"></div>
+            <div class="tab-bar">
+                <button class="tab-btn active" data-panel="left" data-tab="arsenal">Arsenal</button>
+                <button class="tab-btn"        data-panel="left" data-tab="legend">Legend</button>
+            </div>
+            <div class="tab-content" id="tab-arsenal">
+                <div class="arsenal-list" id="arsenalList"></div>
+            </div>
+            <div class="tab-content hidden" id="tab-legend">
+                <div id="threatLegend"></div>
+            </div>
         </div>
 
-        <!-- Right: Status / Threats -->
+        <!-- Right: Threats / Kills / Hits / Log tabs -->
         <div class="panel panel-right">
-            <div class="panel-title">◈ ACTIVE THREATS</div>
-            <div id="activeThreatList"><div class="no-threats">No active threats detected</div></div>
-
-            <div class="panel-title" style="margin-top:12px">◈ KILL BOARD</div>
-            <div id="killBoard" class="kill-board"></div>
-
-            <div class="panel-title" style="margin-top:12px">◈ HITS TAKEN</div>
-            <div id="hitBoard" class="kill-board"></div>
-
-            <div class="panel-title" style="margin-top:12px">◈ COMBAT LOG</div>
-            <div id="statusLog" class="status-log"></div>
+            <div class="tab-bar">
+                <button class="tab-btn active" data-panel="right" data-tab="threats">Threats</button>
+                <button class="tab-btn"        data-panel="right" data-tab="kills">Kills</button>
+                <button class="tab-btn"        data-panel="right" data-tab="hits">Hits</button>
+                <button class="tab-btn"        data-panel="right" data-tab="log">Log</button>
+            </div>
+            <div class="tab-content" id="tab-threats">
+                <div id="activeThreatList"><div class="no-threats">No active threats detected</div></div>
+            </div>
+            <div class="tab-content hidden" id="tab-kills">
+                <div id="killBoard" class="kill-board"></div>
+            </div>
+            <div class="tab-content hidden" id="tab-hits">
+                <div id="hitBoard" class="kill-board"></div>
+            </div>
+            <div class="tab-content hidden" id="tab-log">
+                <div id="statusLog" class="status-log"></div>
+            </div>
         </div>
 
         <!-- Bottom bar -->

@@ -45,11 +45,11 @@
 /* Panels */
 .panel {
     pointer-events: auto;
-    display: flex; flex-direction: column; gap: 4px;
+    display: flex; flex-direction: column;
     background: rgba(7,9,15,0.88);
     backdrop-filter: blur(18px);
     border: 1px solid rgba(59,130,246,0.12);
-    padding: 10px 9px;
+    padding: 8px 9px 6px;
     margin: 8px 6px;
     border-radius: 14px; overflow: hidden;
     max-height: calc(100vh - 114px);
@@ -66,17 +66,45 @@
     flex-shrink: 0;
 }
 
-/* Bottom bar */
+/* Bottom bar — wraps to a second row when buttons overflow */
 .hud-bottom {
     grid-area: btm; pointer-events: auto;
-    display: flex; align-items: center; gap: 5px; flex-wrap: nowrap;
+    display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
     background: rgba(7,9,15,0.88);
     backdrop-filter: blur(18px);
     border-top: 1px solid rgba(59,130,246,0.14);
     padding: 6px 12px;
-    overflow-x: auto;
-    scrollbar-width: none;
 }
+
+/* ── Tab system ── */
+.tab-bar {
+    display: flex; gap: 2px; flex-shrink: 0;
+    border-bottom: 1px solid rgba(59,130,246,0.14);
+    margin-bottom: 6px; padding-bottom: 0;
+}
+.tab-btn {
+    flex: 1;
+    background: none; border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-family: inherit; font-size: 0.6em; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 5px 4px 6px;
+    cursor: pointer; transition: all 0.15s ease;
+    pointer-events: auto;
+}
+.tab-btn:hover { color: #94a3b8; }
+.tab-btn.active {
+    color: #60a5fa;
+    border-bottom-color: #3b82f6;
+}
+.tab-content {
+    display: flex; flex-direction: column;
+    flex: 1; min-height: 0; overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(59,130,246,0.3) transparent;
+}
+.tab-content.hidden { display: none; }
 
 /* ── Arsenal Items ── */
 .arsenal-list { display: flex; flex-direction: column; gap: 4px; overflow-y: visible; flex-shrink: 0; }
@@ -88,11 +116,12 @@
 }
 .arsenal-item:hover { background: rgba(59,130,246,0.07); border-color: rgba(59,130,246,0.28); }
 .arsenal-item.selected {
-    background: rgba(59,130,246,0.11);
-    border-color: rgba(59,130,246,0.48);
-    box-shadow: 0 0 10px rgba(59,130,246,0.12);
+    background: rgba(59,130,246,0.22);
+    border-color: rgba(59,130,246,0.90);
+    box-shadow: 0 0 12px rgba(59,130,246,0.45), inset 0 0 8px rgba(59,130,246,0.12);
+    outline: 1px solid rgba(59,130,246,0.50);
 }
-.arsenal-item.laser-ready   { border-color: rgba(168,85,247,0.45); }
+.arsenal-item.laser-ready   { }
 .arsenal-item.laser-cooling { opacity: 0.5; }
 .arsenal-item.locked        { opacity: 0.38; filter: grayscale(55%); cursor: not-allowed; }
 .arsenal-item.locked:hover  { background: rgba(255,255,255,0.025); border-color: rgba(255,255,255,0.07); box-shadow: none; }
@@ -163,15 +192,10 @@
 
 @keyframes fadeIn { from { opacity:0; transform: translateY(-3px); } to { opacity:1; transform: none; } }
 
-/* Threat Legend — takes remaining panel height, scrolls */
+/* Threat Legend — scrolling handled by parent tab-content */
 #threatLegend {
     display: flex; flex-direction: column; gap: 3px;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
     padding-right: 2px;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(59,130,246,0.3) transparent;
 }
 .legend-item {
     display: flex; align-items: center; gap: 6px;

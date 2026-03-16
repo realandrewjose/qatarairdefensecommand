@@ -60,17 +60,19 @@ const QATAR_CRITICAL_INFRASTRUCTURE = [
     { name: 'Al Ruwais',        x: -0.040, y: -0.274, type: 'city',      weight:  4, color: '#999999' },
 ];
 
-// Defense batteries at geographically accurate positions
+// Defense batteries — sited in Qatar's interior desert, well away from cities
+// Alpha-Echo: main long-range batteries; CR1-3: Phalanx point defence near key assets
 export const DEFENSE_BATTERIES = [
-    { id: 'A', name: 'Alpha / Al Udeid',   x:  0.037, y:  0.074, type: 'patriot', color: '#00ff88' },
-    { id: 'B', name: 'Bravo / Ras Laffan', x:  0.110, y: -0.289, type: 'arrow',   color: '#0088ff' },
-    { id: 'C', name: 'Charlie / Dukhan',   x: -0.120, y: -0.025, type: 'shorad',  color: '#88ff00' },
-    { id: 'D', name: 'Delta / Doha',       x:  0.090, y:  0.020, type: 'laser',   color: '#ff4488' },
-    { id: 'E', name: 'Echo / Mesaieed',    x:  0.124, y:  0.118, type: 'patriot', color: '#ff8800' },
-    // C-RAM Phalanx batteries (point defence — 3 fixed sites)
-    { id: 'CR1', name: 'C-RAM / Doha Port',    x:  0.118, y:  0.008, type: 'cram', color: '#ff6600' },
-    { id: 'CR2', name: 'C-RAM / Al Udeid',     x:  0.042, y:  0.068, type: 'cram', color: '#ff6600' },
-    { id: 'CR3', name: 'C-RAM / Ras Laffan',   x:  0.105, y: -0.278, type: 'cram', color: '#ff6600' },
+    // id, name, world-x, world-y, weapon type, draw color
+    { id: 'A',   name: 'Alpha / Al-Shahaniya Desert',  x: -0.068, y:  0.165, type: 'patriot', color: '#00ff88' },
+    { id: 'B',   name: 'Bravo / Fuwayrit Interior',    x:  0.028, y: -0.205, type: 'arrow',   color: '#0088ff' },
+    { id: 'C',   name: 'Charlie / Zekreet Plateau',    x: -0.095, y: -0.040, type: 'shorad',  color: '#88ff00' },
+    { id: 'D',   name: 'Delta / Umm Bab Desert',       x: -0.012, y:  0.055, type: 'laser',   color: '#ff44cc' },
+    { id: 'E',   name: 'Echo / Al-Khasah Desert',      x:  0.045, y:  0.178, type: 'patriot', color: '#ff8800' },
+    // C-RAM Phalanx — point defence near protected assets (intentionally close to sites)
+    { id: 'CR1', name: 'C-RAM / Doha Port',            x:  0.110, y:  0.015, type: 'cram',    color: '#ff6600' },
+    { id: 'CR2', name: 'C-RAM / Al Udeid',             x:  0.035, y:  0.082, type: 'cram',    color: '#ff6600' },
+    { id: 'CR3', name: 'C-RAM / Ras Laffan',           x:  0.098, y: -0.262, type: 'cram',    color: '#ff6600' },
 ];
 
 // Background SVG (simplemaps qa.svg) world bounding box
@@ -503,52 +505,122 @@ export class Radar {
     }
 
     _drawDefenseBatteries(ctx) {
+        // Type abbreviations shown on each battery symbol
+        const TYPE_ABBR = { patriot: 'PAT', arrow: 'ARW', shorad: 'SHO', laser: 'LAS', cram: 'CRM' };
+
         DEFENSE_BATTERIES.forEach(b => {
             const disabled = this._disabledBatteryIds.has(b.id);
-            const sp  = this.worldToScreen(b.x, b.y);
-            const col = disabled ? '#555555' : b.color;
-            const pulse = disabled ? 0 : (0.5 + 0.5 * Math.sin(this.time * 2.5 + b.x * 10));
+            const sp    = this.worldToScreen(b.x, b.y);
+            const col   = disabled ? '#444' : b.color;
+            const pulse = disabled ? 0 : (0.5 + 0.5 * Math.sin(this.time * 2.2 + b.x * 11 + b.y * 7));
+            const abbr  = TYPE_ABBR[b.type] ?? b.type.toUpperCase();
 
             ctx.save();
-            ctx.strokeStyle = col + Math.floor(pulse * 0x55).toString(16).padStart(2,'0');
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.arc(sp.x, sp.y, 12 + pulse * 4, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
 
-            ctx.save();
-            ctx.fillStyle   = col + 'cc';
-            ctx.strokeStyle = col;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(sp.x,     sp.y - 8);
-            ctx.lineTo(sp.x + 7, sp.y + 5);
-            ctx.lineTo(sp.x - 7, sp.y + 5);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
+            if (b.type === 'cram') {
+                // ── Phalanx C-RAM: square gun-housing + barrel line ──
+                const s = 6;
+                // Outer rotating square pulse
+                ctx.strokeStyle = col + Math.floor(pulse * 0x66).toString(16).padStart(2, '0');
+                ctx.lineWidth = 1;
+                ctx.strokeRect(sp.x - s - 3 - pulse * 2, sp.y - s - 3 - pulse * 2,
+                               (s + 3 + pulse * 2) * 2, (s + 3 + pulse * 2) * 2);
 
-            ctx.fillStyle = col;
-            ctx.font = 'bold 7px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText(b.id, sp.x, sp.y + 17);
-            ctx.restore();
+                // Gun housing (filled square)
+                ctx.fillStyle   = col + 'aa';
+                ctx.strokeStyle = col;
+                ctx.lineWidth   = 1.5;
+                ctx.fillRect(sp.x - s, sp.y - s, s * 2, s * 2);
+                ctx.strokeRect(sp.x - s, sp.y - s, s * 2, s * 2);
 
-            if (disabled) {
-                ctx.save();
-                ctx.strokeStyle = '#ff3333';
+                // Barrel pointing up
+                ctx.strokeStyle = col;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.moveTo(sp.x - 8, sp.y - 8); ctx.lineTo(sp.x + 8, sp.y + 8);
-                ctx.moveTo(sp.x + 8, sp.y - 8); ctx.lineTo(sp.x - 8, sp.y + 8);
+                ctx.moveTo(sp.x, sp.y - s);
+                ctx.lineTo(sp.x, sp.y - s - 8);
+                ctx.stroke();
+                // Barrel tip crossbar
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(sp.x - 3, sp.y - s - 8);
+                ctx.lineTo(sp.x + 3, sp.y - s - 8);
+                ctx.stroke();
+
+                // Label
+                ctx.fillStyle = col;
+                ctx.font = 'bold 6px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(b.id, sp.x, sp.y + s + 9);
+
+            } else {
+                // ── Main batteries: tactical targeting reticle ──
+                const R = 9;  // inner ring radius
+
+                // Outer slow-pulse ring
+                ctx.strokeStyle = col + Math.floor(pulse * 0x44).toString(16).padStart(2, '0');
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(sp.x, sp.y, R + 8 + pulse * 5, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Main reticle ring
+                ctx.strokeStyle = col + 'dd';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(sp.x, sp.y, R, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // 4 cardinal tick marks (outside ring)
+                const ticks = [[0,-1],[0,1],[1,0],[-1,0]];
+                ctx.lineWidth = 2;
+                ticks.forEach(([tx, ty]) => {
+                    ctx.beginPath();
+                    ctx.moveTo(sp.x + tx * (R + 2), sp.y + ty * (R + 2));
+                    ctx.lineTo(sp.x + tx * (R + 6), sp.y + ty * (R + 6));
+                    ctx.stroke();
+                });
+
+                // Inner diamond (filled)
+                const d = 4;
+                ctx.fillStyle   = col + 'cc';
+                ctx.strokeStyle = col;
+                ctx.lineWidth   = 1;
+                ctx.beginPath();
+                ctx.moveTo(sp.x,     sp.y - d);
+                ctx.lineTo(sp.x + d, sp.y);
+                ctx.lineTo(sp.x,     sp.y + d);
+                ctx.lineTo(sp.x - d, sp.y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Type abbreviation above the reticle
+                ctx.fillStyle = col;
+                ctx.font = 'bold 6px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(abbr, sp.x, sp.y - R - 9);
+
+                // ID below
+                ctx.font = 'bold 7px monospace';
+                ctx.fillText(b.id, sp.x, sp.y + R + 12);
+            }
+
+            // ── Disabled overlay ──
+            if (disabled) {
+                ctx.strokeStyle = '#ff3333cc';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(sp.x - 9, sp.y - 9); ctx.lineTo(sp.x + 9, sp.y + 9);
+                ctx.moveTo(sp.x + 9, sp.y - 9); ctx.lineTo(sp.x - 9, sp.y + 9);
                 ctx.stroke();
                 ctx.fillStyle = '#ff3333';
-                ctx.font = 'bold 7px monospace';
+                ctx.font = 'bold 6px monospace';
                 ctx.textAlign = 'center';
                 ctx.fillText('OFFLINE', sp.x, sp.y + 22);
-                ctx.restore();
             }
+
+            ctx.restore();
         });
     }
 
