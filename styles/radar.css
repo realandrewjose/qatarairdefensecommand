@@ -1,0 +1,11 @@
+/* ── Radar Canvas ── */
+.radar-canvas {
+    cursor: crosshair;
+}
+/* Change cursor when hovering over a missile — set via JS: canvas.style.cursor */
+
+@keyframes blipFlash {
+    0%   { opacity: 0; transform: scale(0.5); }
+    40%  { opacity: 1; }
+    100% { opacity: 0; transform: scale(2.2); }
+}

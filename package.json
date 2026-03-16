@@ -1,0 +1,65 @@
+{
+  "name": "qatar-air-defense",
+  "version": "1.0.0",
+  "description": "Qatar Air Defense Command — radar-based air defense game",
+  "main": "electron-main.js",
+  "scripts": {
+    "web": "python -m http.server 8000",
+    "start": "electron .",
+    "desktop": "electron .",
+    "electron": "electron .",
+    "build": "electron-builder --win --publish never",
+    "package": "electron-builder --win --publish never",
+    "package:dir": "electron-builder --dir",
+    "build:portable": "electron-builder --win portable",
+    "build:installer": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.qatar.airdefense",
+    "productName": "Qatar Air Defense",
+    "copyright": "Copyright © 2026",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!dist/**/*",
+      "!.git/**/*",
+      "!.github/**/*",
+      "!.claude/**/*",
+      "!node_modules/**/*",
+      "!README.md",
+      "!launch.bat",
+      "!launch-web.bat",
+      "!test3.js"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis",     "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "keywords": [
+    "game",
+    "radar",
+    "air-defense",
+    "strategy",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  }
+}

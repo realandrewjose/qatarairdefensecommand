@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qatar Air Defense Command</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/radar.css">
+    <link rel="stylesheet" href="styles/ui.css">
+</head>
+<body>
+
+<!-- Screen flash overlay (for missile impacts) -->
+<div id="screenFlash" class="screen-flash"></div>
+
+<!-- Wave alert banner -->
+<div id="waveAlert" class="wave-alert hidden"></div>
+
+<!-- ── Start Screen ── -->
+<div id="startScreen" class="start-screen" style="background:#000;overflow:hidden">
+    <video id="openingVideo" autoplay loop muted playsinline
+           style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0">
+        <source src="assets/videos/OpeningScreen.mp4" type="video/mp4">
+    </video>
+    <!-- Play button + audio toggle — top-left over video -->
+    <div style="position:absolute;top:28px;left:28px;z-index:10;display:flex;flex-direction:column;gap:8px;pointer-events:auto">
+        <button id="beginBtn" class="begin-btn" style="width:auto">
+            ▶ ACTIVATE DEFENSE SYSTEM
+        </button>
+        <button id="videoAudioBtn"
+                style="background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.15);
+                       color:#94a3b8;font-family:inherit;font-size:0.72em;font-weight:600;
+                       padding:5px 14px;border-radius:7px;cursor:pointer;letter-spacing:1px">
+            🔇 AUDIO OFF — CLICK TO ENABLE
+        </button>
+    </div>
+</div>
+
+<!-- ── Game Container ── -->
+<div id="game-container" class="game-container">
+
+    <!-- Radar Canvas (full screen) -->
+    <canvas id="radarCanvas" class="radar-canvas"></canvas>
+
+    <!-- ─── HUD ─── -->
+    <div class="hud">
+
+        <!-- Top bar -->
+        <div class="hud-top">
+            <div class="hud-title">QATAR AIR DEFENSE</div>
+
+            <div class="stat-row">
+                <div class="stat-chip">
+                    <span class="stat-lbl">FUNDS</span>
+                    <span class="stat-val green" id="moneyDisplay">$1,200</span>
+                </div>
+                <div class="stat-chip">
+                    <span class="stat-lbl">WAVE</span>
+                    <span class="stat-val cyan" id="waveDisplay">0</span>
+                </div>
+                <div class="stat-chip" id="threatIndicator">
+                    <span class="stat-lbl">THREATS</span>
+                    <span class="stat-val red" id="threatCount">0</span>
+                </div>
+                <div class="stat-chip">
+                    <span class="stat-lbl">INTEGRITY</span>
+                    <span class="stat-val" id="healthDisplay">100%</span>
+                </div>
+                <div class="stat-chip">
+                    <span class="stat-lbl">SCORE</span>
+                    <span class="stat-val yellow" id="scoreDisplay">0</span>
+                </div>
+                <div class="stat-chip">
+                    <span class="stat-lbl">KILLS</span>
+                    <span class="stat-val green" id="interceptionsDisplay">0</span>
+                </div>
+                <div class="stat-chip">
+                    <span class="stat-lbl">HITS</span>
+                    <span class="stat-val red" id="hitsDisplay">0</span>
+                </div>
+                <div class="stat-chip">
+                    <span class="stat-lbl">EX.RATIO</span>
+                    <span class="stat-val" id="exchangeDisplay">—</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Left: Arsenal -->
+        <div class="panel panel-left">
+            <div class="panel-title">◈ INTERCEPTOR ARSENAL</div>
+            <div class="arsenal-list" id="arsenalList"></div>
+            <div class="panel-title" style="margin-top:12px">◈ THREAT LEGEND</div>
+            <div id="threatLegend"></div>
+        </div>
+
+        <!-- Right: Status / Threats -->
+        <div class="panel panel-right">
+            <div class="panel-title">◈ ACTIVE THREATS</div>
+            <div id="activeThreatList"><div class="no-threats">No active threats detected</div></div>
+
+            <div class="panel-title" style="margin-top:12px">◈ KILL BOARD</div>
+            <div id="killBoard" class="kill-board"></div>
+
+            <div class="panel-title" style="margin-top:12px">◈ HITS TAKEN</div>
+            <div id="hitBoard" class="kill-board"></div>
+
+            <div class="panel-title" style="margin-top:12px">◈ COMBAT LOG</div>
+            <div id="statusLog" class="status-log"></div>
+        </div>
+
+        <!-- Bottom bar -->
+        <div class="hud-bottom">
+            <button id="pauseBtn"      class="ctrl-btn">⏸ PAUSE</button>
+            <button id="zoomOutBtn"    class="ctrl-btn">🔍- ZOOM OUT</button>
+            <button id="zoomInBtn"     class="ctrl-btn">🔍+ ZOOM IN</button>
+            <button id="zoomResetBtn"  class="ctrl-btn">⊙ RESET ZOOM</button>
+            <button id="allyRequestBtn" class="ctrl-btn primary">⚡ ALLIED SUPPORT ($5000)</button>
+            <button id="jetBtn" class="ctrl-btn primary">✈ [6] SCRAMBLE JETS ($1500)</button>
+            <button id="frigateBtn" class="ctrl-btn" disabled>⚓ [7] FRIGATES ($1200) 🔒W11</button>
+            <button id="hornetBtn" class="ctrl-btn" disabled>◈ [8] HORNETS ($600) 🔒W8</button>
+            <button id="ewBtn" class="ctrl-btn ew-btn">⚡ [9] EW JAM ($300)</button>
+            <button id="soundBtn"      class="ctrl-btn">SFX: ON</button>
+            <button id="voiceBtn"      class="ctrl-btn">VOICE: ON</button>
+            <button id="musicBtn"      class="ctrl-btn">♫ MUSIC: ON</button>
+            <button id="settingsBtn"   class="ctrl-btn">⚙ SETTINGS</button>
+        </div>
+    </div><!-- end .hud -->
+
+</div><!-- end #game-container -->
+
+<!-- Avatar — fixed over panels, below overlays -->
+<img id="gameAvatar" src="assets/images/Avatar.png"
+     style="position:fixed;bottom:40px;right:0;
+            height:min(38vh,340px);max-height:calc(100vh - 120px);
+            width:auto;
+            z-index:500;pointer-events:none;user-select:none;">
+
+<!-- ── Settings Panel ── -->
+<div id="settingsPanel" class="overlay-panel hidden">
+    <div class="modal">
+        <div class="modal-title">⚙ SETTINGS</div>
+        <p style="color:#aaa;margin-bottom:16px">Use keyboard shortcuts 1–4 to switch weapons quickly.</p>
+        <div class="modal-row"><span>Sound Effects</span> <button id="soundBtn2" class="ctrl-btn">Toggle</button></div>
+        <div class="modal-row"><span>Voice Overs</span>   <button id="voiceBtn2" class="ctrl-btn">Toggle</button></div>
+        <div class="modal-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+            <span style="color:#94a3b8;font-size:0.82em">SFX Volume</span>
+            <div style="display:flex;align-items:center;gap:10px;width:100%">
+                <input type="range" id="sfxVolumeSlider" min="0" max="100" value="100"
+                       style="flex:1;accent-color:#3b82f6;cursor:pointer">
+                <span id="sfxVolumeLabel" style="color:#fff;font-size:0.78em;width:32px;text-align:right">100%</span>
+            </div>
+        </div>
+        <div class="modal-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+            <span style="color:#94a3b8;font-size:0.82em">Music Volume</span>
+            <div style="display:flex;align-items:center;gap:10px;width:100%">
+                <input type="range" id="musicVolumeSlider" min="0" max="100" value="20"
+                       style="flex:1;accent-color:#3b82f6;cursor:pointer">
+                <span id="musicVolumeLabel" style="color:#fff;font-size:0.78em;width:32px;text-align:right">20%</span>
+            </div>
+        </div>
+        <button id="closeSettingsBtn" class="ctrl-btn primary" style="margin-top:20px">CLOSE</button>
+    </div>
+</div>
+
+<!-- ── Pause Screen ── -->
+<div id="pauseScreen" class="overlay-panel hidden">
+    <div class="modal">
+        <div class="modal-title">⏸ PAUSED</div>
+        <button id="resumeBtn" class="ctrl-btn primary" style="width:180px;margin:10px 0">▶ RESUME</button><br>
+        <button id="quitBtn"   class="ctrl-btn"         style="width:180px;margin:5px 0">✕ QUIT</button>
+    </div>
+</div>
+
+<!-- ── Game Over Screen ── -->
+<div id="gameOverScreen" class="overlay-panel hidden">
+    <div class="modal game-over-modal">
+        <div class="go-title">DEFENSE FAILED</div>
+        <div class="go-subtitle">Qatar has fallen.</div>
+        <div class="go-stats">
+            <div class="go-row"><span>Waves Survived</span>       <span id="finalWaves">—</span></div>
+            <div class="go-row"><span>Total Score</span>          <span id="finalMoney">—</span></div>
+            <div class="go-row"><span>Targets Destroyed</span>    <span id="finalInterceptions">—</span></div>
+            <div class="go-row"><span>Hits Taken</span>           <span id="finalHitTotal" style="color:#f87171">—</span></div>
+            <div class="go-row"><span>Cost Exchange Ratio</span>  <span id="finalExchangeRatio">—</span></div>
+        </div>
+        <div id="finalKillCounts" style="margin-top:10px;font-size:0.72em;color:#aaa;text-align:left;line-height:1.9"></div>
+        <div style="font-size:0.65em;color:#f87171;font-weight:700;margin-top:8px;letter-spacing:1px">HITS BY TYPE:</div>
+        <div id="finalHitCounts" style="margin-top:4px;font-size:0.72em;color:#f87171;text-align:left;line-height:1.9"></div>
+        <button id="restartBtn" class="ctrl-btn primary" style="width:200px;margin-top:24px;font-size:1em">
+            ↺ RESTART DEFENSE
+        </button>
+    </div>
+</div>
+
+<!-- ── Screen Size / Orientation Block ── -->
+<div id="screenSizeBlock"
+     style="display:none;position:fixed;inset:0;z-index:99999;background:#050810;
+            flex-direction:column;align-items:center;justify-content:center;
+            color:#fff;text-align:center;padding:32px;font-family:inherit">
+    <div style="font-size:2.5em;margin-bottom:18px">⛔</div>
+    <div style="font-size:1.3em;font-weight:800;letter-spacing:3px;margin-bottom:14px;color:#ef4444">
+        UNSUPPORTED SCREEN
+    </div>
+    <div style="color:#94a3b8;font-size:0.88em;line-height:1.8;max-width:380px">
+        Qatar Air Defense Command requires a
+        <strong style="color:#fff">landscape screen of at least 10 inches</strong>.<br><br>
+        Please use a desktop or laptop computer.
+    </div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+<script>
+    // Screen size / orientation guard
+    function _checkScreen() {
+        const portrait  = window.innerHeight > window.innerWidth;
+        const tooSmall  = window.innerWidth < 1024 || window.innerHeight < 576;
+        const el = document.getElementById('screenSizeBlock');
+        if (el) el.style.display = (portrait || tooSmall) ? 'flex' : 'none';
+    }
+    window.addEventListener('resize', _checkScreen);
+    window.addEventListener('orientationchange', _checkScreen);
+    _checkScreen();
+
+    // Video audio — auto-unmute on first user interaction
+    window.addEventListener('load', function() {
+        const btn = document.getElementById('videoAudioBtn');
+        const vid = document.getElementById('openingVideo');
+        if (!vid) return;
+
+        function autoUnmute() {
+            vid.muted = false;
+            if (btn) btn.textContent = '🔊 AUDIO ON';
+            document.removeEventListener('click', autoUnmute);
+            document.removeEventListener('keydown', autoUnmute);
+        }
+        document.addEventListener('click', autoUnmute);
+        document.addEventListener('keydown', autoUnmute);
+
+        // Manual toggle still works
+        if (btn) {
+            btn.addEventListener('click', function() {
+                vid.muted = !vid.muted;
+                btn.textContent = vid.muted ? '🔇 AUDIO OFF — CLICK TO ENABLE' : '🔊 AUDIO ON';
+            });
+        }
+
+        // Mute + stop video when game begins — remove autoUnmute FIRST so it doesn't re-enable audio
+        document.getElementById('beginBtn')?.addEventListener('click', function() {
+            document.removeEventListener('click', autoUnmute);
+            document.removeEventListener('keydown', autoUnmute);
+            if (vid) { vid.pause(); vid.muted = true; }
+        }, { once: true });
+    });
+
+    // If browser restores page from bfcache (back-forward cache) after restart,
+    // force a true reload so the video and audio setup re-initialise correctly
+    window.addEventListener('pageshow', function(e) {
+        if (e.persisted) location.reload(true);
+    });
+</script>
+</body>
+</html>

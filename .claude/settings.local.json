@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --input-type=module --experimental-vm-modules)",
+      "Bash(node -e \":*)",
+      "Bash(powershell -Command \"Get-Content ''c:\\\\Users\\\\reala\\\\OneDrive\\\\Desktop\\\\Qatar Air Defense\\\\assets\\\\images\\\\qa.svg'' -TotalCount 5\")",
+      "Bash(powershell -Command \"Get-Content ''c:\\\\Users\\\\reala\\\\OneDrive\\\\Desktop\\\\Qatar Air Defense\\\\assets\\\\images\\\\qa.svg'' | Select-String -Pattern ''viewBox|svg|path'' | Select-Object -First 20\")",
+      "Bash(grep -n \"waveScaling\\\\|FighterJet\\\\|dispatchFighterJet\\\\|jetBtn\\\\|case ''5''\" \"c:\\\\Users\\\\reala\\\\OneDrive\\\\Desktop\\\\Qatar Air Defense\\\\src\\\\entities\\\\Missile.js\" \"c:\\\\Users\\\\reala\\\\OneDrive\\\\Desktop\\\\Qatar Air Defense\\\\src\\\\game\\\\Game.js\" \"c:\\\\Users\\\\reala\\\\OneDrive\\\\Desktop\\\\Qatar Air Defense\\\\src\\\\input\\\\InputHandler.js\")",
+      "Bash(npm install --save-dev electron electron-builder)",
+      "Bash(node -e \"const e = require\\(''./node_modules/electron''\\); console.log\\(typeof e, Object.keys\\(e\\).slice\\(0,10\\)\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/)",
+      "Bash(npm run build:win)",
+      "Bash(python -m http.server 8080)",
+      "WebFetch(domain:cdn.jsdelivr.net)",
+      "WebFetch(domain:www.unpkg.com)",
+      "WebFetch(domain:registry.npmjs.org)",
+      "WebFetch(domain:arxiv.org)",
+      "WebFetch(domain:towardsdatascience.com)",
+      "WebFetch(domain:www.semanticscholar.org)",
+      "WebFetch(domain:gameanalytics.com)",
+      "WebFetch(domain:js.tensorflow.org)",
+      "WebFetch(domain:en.wikipedia.org)",
+      "WebFetch(domain:paperswithcode.com)",
+      "WebFetch(domain:www.mdpi.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.gamedeveloper.com)",
+      "WebFetch(domain:www.cs.ubc.ca)",
+      "WebFetch(domain:storage.googleapis.com)",
+      "WebFetch(domain:ieeexplore.ieee.org)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:ggcarvalho.dev)",
+      "WebFetch(domain:www.freecodecamp.org)",
+      "WebFetch(domain:lilianweng.github.io)",
+      "WebFetch(domain:www.briankimak.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:research.google)",
+      "Bash(node -e \"const e = require\\(''electron''\\); console.log\\(typeof e, Object.keys\\(e || {}\\).slice\\(0,10\\)\\)\")",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\(''''version'''',''''?''''\\)\\)\")",
+      "Bash(node_modules/electron/dist/electron.exe --version)"
+    ]
+  }
+}
