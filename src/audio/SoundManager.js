@@ -134,7 +134,11 @@ export class SoundManager {
     }
 
     pauseMusic()  { if (this._musicAudio) this._musicAudio.pause(); }
-    resumeMusic() { if (this._musicAudio && this.musicEnabled) this._musicAudio.play().catch(() => {}); }
+    resumeMusic() {
+        if (!this.musicEnabled) return;
+        if (!this._musicStarted) { this.startMusic(); return; }
+        if (this._musicAudio) this._musicAudio.play().catch(() => {});
+    }
     stopMusic()   { if (this._musicAudio) { this._musicAudio.pause(); this._musicAudio.currentTime = 0; } }
     nextTrack()   { this._trackIdx = (this._trackIdx + 1) % this._playlist.length; this._playTrack(); this.onTrackChange?.(); }
     prevTrack()   { this._trackIdx = (this._trackIdx - 1 + this._playlist.length) % this._playlist.length; this._playTrack(); this.onTrackChange?.(); }

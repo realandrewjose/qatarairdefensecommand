@@ -352,6 +352,9 @@ export class InputHandler {
             this.sound?.stopMusic?.();
             document.getElementById('musicPlayer')?.classList.add('hidden');
         });
+        on('musicPlayerCloseBtn', () => {
+            document.getElementById('musicPlayer')?.classList.add('hidden');
+        });
         if (this.sound) this.sound.onTrackChange = () => this._updateMusicPlayer();
     }
 
