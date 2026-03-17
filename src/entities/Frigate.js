@@ -187,20 +187,35 @@ export class Frigate {
 
     _fire(target, isCram) {
         if (isCram) {
+            // C-RAM fires a rapid burst of 8 rounds (like land-based Phalanx)
+            const BURST = 8;
+            const ROUND_MS = 55; // ms between rounds
             this.cramCooldown = this.cramInterval;
+            for (let r = 0; r < BURST; r++) {
+                setTimeout(() => {
+                    if (!target.isActive?.() && !target.active) return;
+                    if (!this.active) return;
+                    this._launchCallback?.({
+                        fromX: this.x, fromY: this.y,
+                        target,
+                        isCram: true,
+                        callsign: this.callsign,
+                    });
+                    // Staggered muzzle flashes
+                    this._flashes.push({ age: 0, maxAge: 0.18, isCram: true });
+                }, r * ROUND_MS);
+            }
         } else {
             this.ammo--;
             this.engageCooldown = this.engageInterval;
+            this._launchCallback?.({
+                fromX: this.x, fromY: this.y,
+                target,
+                isCram: false,
+                callsign: this.callsign,
+            });
+            this._flashes.push({ age: 0, maxAge: 0.35, isCram: false });
         }
-        // Request a real Interceptor from Game.js
-        this._launchCallback?.({
-            fromX: this.x, fromY: this.y,
-            target,
-            isCram,
-            callsign: this.callsign,
-        });
-        // Visual: muzzle flash at ship
-        this._flashes.push({ age: 0, maxAge: 0.25, isCram });
     }
 
     // ── Draw ─────────────────────────────────────────────────────────────────

@@ -1,6 +1,30 @@
 import { INTERCEPTOR_TYPES } from '../entities/Interceptor.js';
 import { MISSILE_TYPES } from '../entities/Missile.js';
 
+// ── PSA cutscene playlist ───────────────────────────────────────────────────
+const PSA_VIDEOS = [
+    'AlertLoud.mp4',
+    'Drones.mp4',
+    'ExplosionsWhenDriving.mp4',
+    'Fake News.mp4',
+    'IfYouSeeMissile.mp4',
+    'IntegratedSecurityFramework.mp4',
+    'LoudSound.mp4',
+    'MarketsStable.mp4',
+    'ReportSuspicious.mp4',
+    'ShoppingComplexes.mp4',
+    'WorkplaceProcedure.mp4',
+].map(f => `assets/videos/PSAs/${encodeURIComponent(f)}`);
+
+function _shuffleArr(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
 const THREAT_COLORS = {
     ballistic:     '#ff2200',
     cruise:        '#ff8800',
@@ -63,9 +87,15 @@ export class UIManager {
         this._waveTimer    = null;
         this._highScore    = parseInt(_getCookie('qad_hs') || '0', 10);
 
+        // PSA cutscene state
+        this._psaPlaylist = _shuffleArr(PSA_VIDEOS);
+        this._psaIndex    = 0;
+        this._psaDone     = false;
+
         this._buildArsenal();
         this._buildThreatLegend();
         this._initTabs();
+        this._initTopBarButtons();
 
         // Cache DOM element references once — never call getElementById in the hot update loop
         this._els = {
@@ -108,12 +138,98 @@ export class UIManager {
             onLog:             (msg, type)             => this.log(msg, type),
             onHornetUnlocked:  ()                      => this._unlockHornet(),
             onFrigateUnlocked: ()                      => this._unlockFrigate(),
+            onCutscene:        (waveNum, doneCb)       => this._playCutscene(waveNum, doneCb),
         });
 
         this._updateKillBoard();
         this._updateHitBoard();
         this._updateInterval = setInterval(() => this._updateHUD(), 100);
         this.log('Qatar Air Defense System — ONLINE. Click a missile blip to intercept.', 'success');
+    }
+
+    _initTopBarButtons() {
+        document.getElementById('clearDataBtn')?.addEventListener('click', () => {
+            if (!confirm('Clear all saved data (high score)?')) return;
+            // Expire the high score cookie
+            document.cookie = 'qad_hs=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+            this._highScore = 0;
+            if (this._els?.bestDisplay) this._els.bestDisplay.textContent = '0';
+            this.log('◉ Saved data cleared.', 'info');
+        });
+    }
+
+    _playCutscene(waveNum, doneCb) {
+        if (this._psaDone || this._psaIndex >= this._psaPlaylist.length) {
+            this._psaDone = true;
+            doneCb();
+            return;
+        }
+
+        const overlay = document.getElementById('cutsceneOverlay');
+        const video   = document.getElementById('cutsceneVideo');
+        const intro   = document.getElementById('cutsceneIntro');
+        const skipBtn = document.getElementById('cutsceneSkipBtn');
+        if (!overlay || !video) { doneCb(); return; }
+
+        const src = this._psaPlaylist[this._psaIndex++];
+        if (this._psaIndex >= this._psaPlaylist.length) this._psaDone = true;
+
+        // Prepare video but don't play yet
+        video.src = src;
+        video.currentTime = 0;
+        video.style.visibility = 'hidden';
+
+        // Show overlay with intro screen
+        if (intro) intro.style.display = 'flex';
+        overlay.style.display = 'flex';
+
+        const close = () => {
+            window.speechSynthesis?.cancel();
+            video.pause();
+            video.src = '';
+            overlay.style.display = 'none';
+            if (intro) intro.style.display = 'none';
+            doneCb();
+        };
+
+        const playVideo = () => {
+            if (intro) intro.style.display = 'none';
+            video.style.visibility = 'visible';
+            video.play().catch(() => {});
+            video.onended = close;
+        };
+
+        // Speak intro text in English, then play video
+        const INTRO_TEXT = 'Ministry of Interior. This is not a drill. This is a public service announcement.';
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+            const utt = new SpeechSynthesisUtterance(INTRO_TEXT);
+            utt.rate  = 0.82;
+            utt.pitch = 0.72;
+            utt.volume = 1.0;
+            const voices = window.speechSynthesis.getVoices();
+            const voice =
+                voices.find(v => v.lang === 'en-US' && /male|david|mark|richard/i.test(v.name)) ||
+                voices.find(v => v.lang === 'en-GB' && /male|daniel/i.test(v.name)) ||
+                voices.find(v => v.lang.startsWith('en-US')) ||
+                voices.find(v => v.lang.startsWith('en')) ||
+                voices[0];
+            if (voice) utt.voice = voice;
+            utt.onend   = playVideo;
+            utt.onerror = playVideo;
+            // Safety: if speech never fires, start video after 5s
+            const speechTimeout = setTimeout(playVideo, 5000);
+            utt.onend = () => { clearTimeout(speechTimeout); playVideo(); };
+            window.speechSynthesis.speak(utt);
+        } else {
+            // No speech API — show intro for 3s then play
+            setTimeout(playVideo, 3000);
+        }
+
+        // Wire skip button (clone to remove stale listeners)
+        const newSkip = skipBtn.cloneNode(true);
+        skipBtn.parentNode.replaceChild(newSkip, skipBtn);
+        document.getElementById('cutsceneSkipBtn').addEventListener('click', close, { once: true });
     }
 
     _initTabs() {

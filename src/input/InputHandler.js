@@ -45,8 +45,13 @@ export class InputHandler {
         on('ewBtn',            () => this._dispatchEW());
         on('legendBtn',        () => this._openLegend());
         on('legendCloseBtn',   () => this._closeLegend());
+        on('fullscreenBtn',    () => this._toggleFullscreen());
 
         document.addEventListener('keydown', e => this._keydown(e));
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('fullscreenBtn');
+            if (btn) btn.textContent = document.fullscreenElement ? '⛶ EXIT FULL' : '⛶ FULLSCREEN';
+        });
         this._initMusicPlayer();
 
         // Volume sliders
@@ -324,6 +329,19 @@ export class InputHandler {
 
     _toggleSettings() {
         document.getElementById('settingsPanel')?.classList.toggle('hidden');
+    }
+
+    _toggleFullscreen() {
+        const btn = document.getElementById('fullscreenBtn');
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().then(() => {
+                if (btn) btn.textContent = '⛶ EXIT FULL';
+            }).catch(() => {});
+        } else {
+            document.exitFullscreen().then(() => {
+                if (btn) btn.textContent = '⛶ FULLSCREEN';
+            }).catch(() => {});
+        }
     }
 
     _toggleSound() {

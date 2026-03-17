@@ -39,7 +39,8 @@
       "Bash(node_modules/electron/dist/electron.exe --version)",
       "Bash(npm install:*)",
       "Bash(npm run:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(python -m http.server 8000)"
     ]
   }
 }

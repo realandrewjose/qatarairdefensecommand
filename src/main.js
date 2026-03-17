@@ -138,6 +138,12 @@ if (startScreen) {
         { src: 'assets/sounds/Confirm Kill.mp3',                   label: 'Kill Voice 2' },
         { src: 'assets/sounds/Haihoom.mp3',                        label: 'Kill Voice 3' },
         { src: 'assets/sounds/Allah U Akbar.m4a',                  label: 'Kill Voice 4' },
+        { src: 'assets/sounds/Mowashem.mp3',                       label: 'Kill Voice 5' },
+        { src: 'assets/sounds/Kamel.mp3',                          label: 'Kill Voice 6' },
+        { src: 'assets/sounds/Destroyed.mp3',                      label: 'Kill Voice 7' },
+        { src: 'assets/sounds/AlHamdulilah.mp3',                   label: 'Kill Voice 8' },
+        { src: 'assets/sounds/YaWatan.mp3',                        label: 'Kill Voice 9' },
+        { src: 'assets/sounds/TargetDestroyedCalloutVoice.mp3',    label: 'Kill Voice 10' },
         // Music
         { src: M + 'الآدعم.mp3',                                   label: 'Music: الآدعم' },
         { src: M + 'أبشري يا دار  اخو روضة بنا _ كلمات_ محمد الصلابي.mp3',                                                        label: 'Music: أبشري يا دار' },
@@ -187,14 +193,31 @@ if (startScreen) {
     }
 
     // ── Begin button ────────────────────────────────────────────────────────
-    const begin = () => {
+    const startGame = () => {
         startScreen.classList.add('fade-out');
         setTimeout(() => { startScreen.classList.add('hidden'); }, 600);
         sound.resume();
         game.start();
         sound.speak('Qatar Air Defense System activated. Defend the homeland.');
     };
-    beginBtn?.addEventListener('click', begin);
+
+    beginBtn?.addEventListener('click', () => {
+        const fsPrompt = document.getElementById('fsPrompt');
+        if (!fsPrompt) { startGame(); return; }
+
+        fsPrompt.style.display = 'block';
+
+        const closePrompt = () => {
+            fsPrompt.style.display = 'none';
+            startGame();
+        };
+        document.getElementById('fsPromptClose')?.addEventListener('click', closePrompt, { once: true });
+        document.getElementById('fsPromptNo')?.addEventListener('click', closePrompt, { once: true });
+        document.getElementById('fsPromptYes')?.addEventListener('click', () => {
+            document.documentElement.requestFullscreen().catch(() => {});
+            closePrompt();
+        }, { once: true });
+    }, { once: true });
 
 } else {
     game.start();

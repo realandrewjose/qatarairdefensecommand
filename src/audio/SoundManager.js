@@ -17,12 +17,18 @@ const MUSIC_FILES = [
     'يامطوعين الصعايب __ كلمات _ خليل الشبرمي __ أداء _ عبدالعزيز العليوي.mp3',
 ];
 
-// Kill SFX files — cycled in order on each interception
+// Kill SFX files — randomized (no consecutive repeats) on each interception
 const KILL_SFX_FILES = [
     'assets/sounds/AllahUAkbaralt.mp3',
     'assets/sounds/Confirm Kill.mp3',
     'assets/sounds/Haihoom.mp3',
     'assets/sounds/Allah U Akbar.m4a',
+    'assets/sounds/Mowashem.mp3',
+    'assets/sounds/Kamel.mp3',
+    'assets/sounds/Destroyed.mp3',
+    'assets/sounds/AlHamdulilah.mp3',
+    'assets/sounds/YaWatan.mp3',
+    'assets/sounds/TargetDestroyedCalloutVoice.mp3',
 ];
 
 export class SoundManager {
@@ -44,8 +50,8 @@ export class SoundManager {
         this._musicVolume  = 0.20;
         this._musicStarted = false;
 
-        // Kill SFX — cycling through KILL_SFX_FILES
-        this._killSfxIdx     = 0;
+        // Kill SFX — random, no consecutive repeats
+        this._lastKillSfxIdx = -1;
         this._killSfxBuffers = {}; // url → AudioBuffer (preloaded)
 
         // Air raid siren
@@ -174,8 +180,11 @@ export class SoundManager {
 
     playKillSfx() {
         if (!this.enabled) return;
-        const url = KILL_SFX_FILES[this._killSfxIdx];
-        this._killSfxIdx = (this._killSfxIdx + 1) % KILL_SFX_FILES.length;
+        let idx;
+        do { idx = Math.floor(Math.random() * KILL_SFX_FILES.length); }
+        while (idx === this._lastKillSfxIdx && KILL_SFX_FILES.length > 1);
+        this._lastKillSfxIdx = idx;
+        const url = KILL_SFX_FILES[idx];
 
         const buf = this._killSfxBuffers[url];
         if (buf && this.ctx) {
@@ -199,7 +208,7 @@ export class SoundManager {
     playInterceptionExplosion() {
         if (!this.enabled) return;
         const a = new Audio('assets/sounds/InterceptionExplosion.mp3');
-        a.volume = 0.90;
+        a.volume = 1.0;
         a.play().catch(() => {});
     }
 

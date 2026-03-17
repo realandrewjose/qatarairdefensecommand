@@ -109,6 +109,9 @@ export class Game {
         this.onBorderCross     = null;
         this.onLog             = null;
         this.onHornetUnlocked  = null;
+        this.onCutscene        = null;   // (waveNum, doneCb) — called before every 5th wave
+
+        this._waitingForCutscene = false;
 
         this.laserCooldownMax = 8;
         this.laserCooldown    = 0;
@@ -341,9 +344,24 @@ export class Game {
 
         // Wave spawning
         this.waveTimer += deltaTime;
-        if (this.waveTimer >= this.nextWaveIn) {
-            this.waveTimer = 0;
-            this.spawnWave();
+        if (this.waveTimer >= this.nextWaveIn && !this._waitingForCutscene) {
+            const _nextWaveNum = this.gameState.getWaveCount() + 1;
+            if (_nextWaveNum % 5 === 0 && this.onCutscene) {
+                this._waitingForCutscene = true;
+                this.waveTimer = this.nextWaveIn; // freeze timer
+                this.pause();
+                this.sound?.pauseMusic();
+                this.onCutscene(_nextWaveNum, () => {
+                    this._waitingForCutscene = false;
+                    this.waveTimer = 0;
+                    this.resume();
+                    this.sound?.resumeMusic();
+                    this.spawnWave();
+                });
+            } else {
+                this.waveTimer = 0;
+                this.spawnWave();
+            }
         }
 
         // Laser recharge
@@ -670,7 +688,8 @@ export class Game {
             if (type === 'ENTRY') {
                 // Air raid siren — only plays if not already sounding
                 this.sound?.playAirRaidSiren();
-                this.sound?.speak('Border alert \u2014 missile entering Qatar airspace.', true);
+                const _alertName = missile.config?.name || (missile.type === 'enemy_fighter' ? 'Enemy Fighter' : missile.type?.replace(/_/g, ' ') || 'threat');
+                this.sound?.speak(`Border alert — ${_alertName} approaching Qatar airspace.`, true);
 
                 // Allied support / Shield: auto-destroy ADIZ crossers
                 if ((this._alliedSupportActive || this._shieldActive) && missile.active) {
@@ -1696,7 +1715,7 @@ export class Game {
     getEntityManager()  { return this.entityManager; }
     getRadar()          { return this.radar; }
 
-    setCallbacks({ onMissileSpawned, onInterception, onImpact, onWave, onGameOver, onLog, onHornetUnlocked, onFrigateUnlocked }) {
+    setCallbacks({ onMissileSpawned, onInterception, onImpact, onWave, onGameOver, onLog, onHornetUnlocked, onFrigateUnlocked, onCutscene }) {
         this.onMissileSpawned  = onMissileSpawned;
         this.onInterception    = onInterception;
         this.onImpact          = onImpact;
@@ -1705,6 +1724,7 @@ export class Game {
         this.onLog             = onLog;
         this.onHornetUnlocked  = onHornetUnlocked;
         this.onFrigateUnlocked = onFrigateUnlocked;
+        this.onCutscene        = onCutscene;
     }
 
     isJetDispatchReady() {
