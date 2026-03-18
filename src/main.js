@@ -57,43 +57,42 @@ if (startScreen) {
     const bar = document.getElementById('loadFill');
     const pct = document.getElementById('loadCount');
 
-    // ── Pseudo progress bar — animates to 100% then unlocks button ──────────
-    const PHASES = [
-        { label: '◈ INITIALIZING RADAR SYSTEMS…',      target: 18,  delay: 120 },
-        { label: '◈ LOADING WEAPON SYSTEMS…',           target: 38,  delay: 90  },
-        { label: '◈ CALIBRATING DEFENSE GRID…',         target: 55,  delay: 80  },
-        { label: '◈ SYNCING THREAT DATABASE…',          target: 72,  delay: 70  },
-        { label: '◈ ARMING INTERCEPTORS…',              target: 85,  delay: 60  },
-        { label: '◈ ESTABLISHING COMMAND LINK…',        target: 95,  delay: 50  },
-        { label: '◈ DEFENSE SYSTEMS READY',             target: 100, delay: 40  },
+    // ── Pseudo progress bar — CSS transition drives exactly 10s fill ────────
+    const TOTAL_MS = 10000;
+    const LABELS = [
+        { ms:    0, text: '◈ INITIALIZING RADAR SYSTEMS…'  },
+        { ms: 2000, text: '◈ LOADING WEAPON SYSTEMS…'       },
+        { ms: 4000, text: '◈ CALIBRATING DEFENSE GRID…'     },
+        { ms: 5800, text: '◈ SYNCING THREAT DATABASE…'      },
+        { ms: 7400, text: '◈ ARMING INTERCEPTORS…'          },
+        { ms: 8800, text: '◈ ESTABLISHING COMMAND LINK…'    },
+        { ms: 9700, text: '◈ DEFENSE SYSTEMS READY'         },
     ];
 
-    let current = 0;
-    let phaseIdx = 0;
-
-    function tick() {
-        if (phaseIdx >= PHASES.length) return;
-        const phase = PHASES[phaseIdx];
-        if (current < phase.target) {
-            current++;
-            if (bar) bar.style.width = `${current}%`;
-            if (pct) pct.textContent = `${current}%`;
-            if (lbl) lbl.textContent = phase.label;
-            setTimeout(tick, phase.delay);
-        } else {
-            phaseIdx++;
-            if (phaseIdx < PHASES.length) {
-                setTimeout(tick, 120);
-            } else {
-                // Done — unlock
-                if (bar) bar.style.background = 'linear-gradient(90deg,#065f46,#10b981,#34d399)';
-                if (beginBtn) { beginBtn.disabled = false; beginBtn.textContent = '▶ ACTIVATE DEFENSE SYSTEM'; }
-                if (loadingBar) setTimeout(() => { loadingBar.style.opacity = '0'; }, 1600);
-            }
-        }
+    // Set CSS transition then kick width to 100% — browser handles smooth fill
+    if (bar) {
+        bar.style.transition = `width ${TOTAL_MS}ms linear`;
+        // Force a reflow so the transition starts from 0%
+        bar.getBoundingClientRect();
+        bar.style.width = '100%';
     }
 
-    setTimeout(tick, 300);
+    // Schedule label changes
+    LABELS.forEach(({ ms, text }) => {
+        setTimeout(() => { if (lbl) lbl.textContent = text; }, ms);
+    });
+
+    // Schedule percentage counter
+    for (let p = 0; p <= 100; p++) {
+        setTimeout(() => { if (pct) pct.textContent = `${p}%`; }, TOTAL_MS * p / 100);
+    }
+
+    // Unlock exactly at 10s
+    setTimeout(() => {
+        if (bar) bar.style.background = 'linear-gradient(90deg,#065f46,#10b981,#34d399)';
+        if (beginBtn) { beginBtn.disabled = false; beginBtn.textContent = '▶ ACTIVATE DEFENSE SYSTEM'; }
+        if (loadingBar) setTimeout(() => { loadingBar.style.opacity = '0'; }, 1600);
+    }, TOTAL_MS);
 
     // Video plays ambient in background — does NOT gate the button
     if (vid) {
