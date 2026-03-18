@@ -119,7 +119,7 @@ export class InputHandler {
         const nearestPowerup = this.game.getNearestPowerup?.(wx, wy);
         if (nearestPowerup) {
             this.game.collectPowerup(nearestPowerup);
-            document.getElementById('moneyDisplay').textContent = '$' + this.game.getGameState().getMoney();
+            document.getElementById('moneyDisplay').textContent = '$' + this.game.getGameState().getMoney().toLocaleString();
             return;
         }
 
@@ -223,7 +223,7 @@ export class InputHandler {
             this.sound?.playLaunch();
             this.log(`${cfg.name} → ${tgtName} — $${cfg.cost}`, targetMissile.isCivilian ? 'error' : 'success');
         }
-        document.getElementById('moneyDisplay').textContent = '$' + gameState.getMoney();
+        document.getElementById('moneyDisplay').textContent = '$' + gameState.getMoney().toLocaleString();
     }
 
     /** Fire all 3 C-RAM Phalanx batteries in machine-gun bursts — 18 rds/battery, $20/burst.
@@ -281,7 +281,7 @@ export class InputHandler {
         const offlineCount = this.game.radar.getBatteries().filter(b => b.type === 'cram').length - cramBatteries.length;
         const offlineNote  = offlineCount > 0 ? ` [${offlineCount} offline]` : '';
         this.log(`C-RAM ${burstDesc} (${cramBatteries.length}× Phalanx ×${ROUNDS_PER} rds${offlineNote}) → ${tgtName} — $${totalCost}`, 'success');
-        document.getElementById('moneyDisplay').textContent = '$' + gameState.getMoney();
+        document.getElementById('moneyDisplay').textContent = '$' + gameState.getMoney().toLocaleString();
     }
 
     selectType(type, { silent = false } = {}) {
@@ -489,7 +489,7 @@ export class InputHandler {
     _dispatchJet() {
         const result = this.game.dispatchFighterJet();
         if (result.ok) {
-            document.getElementById('moneyDisplay').textContent = '$' + this.game.getGameState().getMoney();
+            document.getElementById('moneyDisplay').textContent = '$' + this.game.getGameState().getMoney().toLocaleString();
         } else if (result.reason?.startsWith('udeid:')) {
             const waves = result.reason.split(':')[1];
             this.log(`\u2708 Al Udeid offline \u2014 jets unavailable for ${waves} more wave(s).`, 'warning');
@@ -507,7 +507,7 @@ export class InputHandler {
         const result = this.game.dispatchHornetSquadron();
         if (!result) return;
         if (result.ok) {
-            document.getElementById('moneyDisplay').textContent = '$' + this.game.getGameState().getMoney();
+            document.getElementById('moneyDisplay').textContent = '$' + this.game.getGameState().getMoney().toLocaleString();
         } else if (result.reason === 'locked') {
             this.log('\u25c8 Hornet UAVs unlock at Wave 8.', 'warning');
         } else if (result.reason?.startsWith('udeid:')) {
@@ -527,7 +527,7 @@ export class InputHandler {
         const result = this.game.dispatchFrigates?.();
         if (!result) return;
         if (result.ok) {
-            document.getElementById('moneyDisplay').textContent = '$' + this.game.getGameState().getMoney();
+            document.getElementById('moneyDisplay').textContent = '$' + this.game.getGameState().getMoney().toLocaleString();
         } else if (result.reason === 'locked') {
             this.log('⚓ Frigate squadron unlocks at Wave 11.', 'warning');
         } else if (result.reason?.startsWith('khor:')) {
@@ -546,7 +546,7 @@ export class InputHandler {
     _dispatchEW() {
         const result = this.game.dispatchEW();
         if (result.ok) {
-            document.getElementById('moneyDisplay').textContent = '$' + this.game.getGameState().getMoney();
+            document.getElementById('moneyDisplay').textContent = '$' + this.game.getGameState().getMoney().toLocaleString();
         } else if (result.reason === 'active') {
             this.log('⚡ EW jammer already active!', 'warning');
         } else if (result.reason?.startsWith('cooldown:')) {

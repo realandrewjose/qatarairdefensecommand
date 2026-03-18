@@ -203,7 +203,7 @@ export class UIManager {
         this._impactCounts = {}; // hits taken by missile type
         this._totalImpacts = 0;
         this._waveTimer    = null;
-        this._highScore    = parseInt(_getPersistedValue('qad_hs')  || '0', 10);
+        this._highScore    = parseInt((_getPersistedValue('qad_hs')  || '0').replace(/[^0-9]/g, ''), 10) || 0;
         this._cumScore     = parseInt(_getPersistedValue('qad_cs')  || '0', 10);
         this._totalKills   = parseInt(_getPersistedValue('qad_tk')  || '0', 10);
         this._totalPlaytime= parseInt(_getPersistedValue('qad_pt')  || '0', 10);

@@ -80,9 +80,12 @@ if (startScreen) {
         setTimeout(() => { if (lbl) lbl.textContent = text; }, ms);
     });
 
-    for (let p = 0; p <= 100; p++) {
-        setTimeout(() => { if (pct) pct.textContent = `${p}%`; }, TOTAL_MS * p / 100);
-    }
+    // Single interval instead of 101 individual timers
+    let _pct = 0;
+    const _pctTimer = setInterval(() => {
+        if (pct) pct.textContent = `${_pct}%`;
+        if (++_pct > 100) clearInterval(_pctTimer);
+    }, TOTAL_MS / 100);
 
     setTimeout(() => {
         if (bar) bar.style.background = 'linear-gradient(90deg,#065f46,#10b981,#34d399)';

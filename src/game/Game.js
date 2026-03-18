@@ -471,12 +471,15 @@ export class Game {
         for (const m of this.entityManager.getMissiles()) {
             if (m.type === 'mirv' && m.progress >= 0.60 && !m.hasSplit) {
                 m.hasSplit = true;
+                // Match the current wave's speed/damage scaling so sub-warheads feel as dangerous as the carrier
+                const subScaling = (1.0 + Math.min((this.gameState.getWaveCount() - 1) * 0.04, 1.5))
+                                 * (DIFFICULTY_PRESETS[this._ddaAction]?.speedMult ?? 1.0);
                 for (let s = 0; s < 2; s++) {
                     const sub = new Missile(
                         m.x, m.y,
                         m.targetX + (Math.random() - 0.5) * 0.14,
                         m.targetY + (Math.random() - 0.5) * 0.14,
-                        'ballistic', m.targetName
+                        'ballistic', m.targetName, subScaling
                     );
                     sub.arcHeight = 0.06;
                     sub.speed *= 1.2;
@@ -648,11 +651,10 @@ export class Game {
                 : null;
 
             if (hitBattery) {
-                // Negligible HP damage — shockwave only, ~8% of missile damage
-                const shockwaveDmg = Math.max(1, Math.round(ev.damage * 0.08));
-                this.gameState.damaged(shockwaveDmg);
+                // Battery absorbs the strike — flat 5 HP structural damage regardless of missile type
+                this.gameState.damaged(5);
                 this.triggerShake(0.25);
-                this.onImpact?.(shockwaveDmg, ev.missileType, hitBattery.name);
+                this.onImpact?.(5, ev.missileType, hitBattery.name);
                 this.sound?.playEnemyExplosion();
 
                 this._batteryDisabledWaves[hitBattery.id] = 5;
@@ -661,10 +663,10 @@ export class Game {
                 const activeLeft  = allOfType.filter(x => (this._batteryDisabledWaves[x.id] || 0) <= 0).length;
                 const totalOfType = allOfType.length;
                 if (activeLeft === 0) {
-                    this.onLog?.(`⚠ ${hitBattery.name} DESTROYED — ALL ${hitBattery.type.toUpperCase()} batteries OFFLINE for 5 waves! (-${shockwaveDmg} HP shockwave)`, 'error');
+                    this.onLog?.(`⚠ ${hitBattery.name} DESTROYED — ALL ${hitBattery.type.toUpperCase()} batteries OFFLINE for 5 waves! (-5 HP)`, 'error');
                     this.sound?.speak(`All ${hitBattery.type} batteries offline.`, true);
                 } else {
-                    this.onLog?.(`⚠ ${hitBattery.name} HIT — ${activeLeft}/${totalOfType} ${hitBattery.type.toUpperCase()} remaining. (-${shockwaveDmg} HP shockwave)`, 'warning');
+                    this.onLog?.(`⚠ ${hitBattery.name} HIT — ${activeLeft}/${totalOfType} ${hitBattery.type.toUpperCase()} remaining. (-5 HP)`, 'warning');
                     this.sound?.speak(`${hitBattery.type} battery hit. ${activeLeft} remaining.`, true);
                 }
                 this.onBatteryStatusChange?.({ type: hitBattery.type, id: hitBattery.id, name: hitBattery.name, activeCount: activeLeft, totalCount: totalOfType, online: false });
@@ -1784,7 +1786,7 @@ export class Game {
 
         // Build dynamic weight list — batteries get a SEAD multiplier on top of base weight 1
         // Dead (already-offline) batteries get weight 0; enemy won't waste missiles on them
-        const seadMult = 1 + this._seadPressure * 9; // 1× (no pressure) → 10× (full pressure)
+        const seadMult = 1 + this._seadPressure * 3; // 1× (no pressure) → 4× (full pressure) — moderate SEAD doctrine
         const batteryNames = new Set(batteries.map(b => b.name));
 
         const targets = QATAR_TARGETS.map(t => {

@@ -187,6 +187,7 @@ export class Missile {
         this.wobblePhase = Math.random() * Math.PI * 2;
         this.blipBrightness = 1.0;
         this._age = 0;
+        this._drawHeading = 0; // visual heading — updated each movement tick
 
         // Maneuvering missile state
         if (cfg.maneuverable) {
@@ -231,6 +232,8 @@ export class Missile {
         // ── Normal progress-based movement ──
         this.progress = Math.min(1.0, this.progress + this.speed * (this._jamMult) * deltaTime);
         const pos = this.getPositionAt(this.progress);
+        // Track visual heading so _drawDrone can use actual movement direction
+        this._drawHeading = Math.atan2(this.targetY - this.startY, this.targetX - this.startX);
         this.x = pos.x;
         this.y = pos.y;
 
@@ -268,6 +271,7 @@ export class Missile {
                 if (dist < 0.025) {
                     this.loiterPhase = 'circle';
                 } else {
+                    this._drawHeading = Math.atan2(dy, dx);
                     const step = this.speed * this._jamMult * deltaTime;
                     this.x += (dx / dist) * step;
                     this.y += (dy / dist) * step;
@@ -277,6 +281,8 @@ export class Missile {
             case 'circle': {
                 this.loiterTimer -= deltaTime;
                 this.loiterAngle += this.loiterAngSpeed * deltaTime;
+                // Heading = tangent to circle in direction of angular travel
+                this._drawHeading = this.loiterAngle + (this.loiterAngSpeed > 0 ? Math.PI / 2 : -Math.PI / 2);
                 this.x = this.loiterApproachX + Math.cos(this.loiterAngle) * this.loiterRadius;
                 this.y = this.loiterApproachY + Math.sin(this.loiterAngle) * this.loiterRadius;
                 if (this.wobbleAmp > 0) {
@@ -293,6 +299,7 @@ export class Missile {
             }
             case 'strike': {
                 // Fast dive at target
+                this._drawHeading = Math.atan2(this.targetY - this.y, this.targetX - this.x);
                 this.progress = Math.min(1.0, this.progress + this.speed * this._jamMult * deltaTime * 4);
                 const pos = this.getPositionAt(this.progress);
                 this.x = pos.x;
@@ -394,7 +401,7 @@ export class Missile {
         if (this.config.isCluster && !this.hasSplit) {
             const splitProx = Math.max(0, (this.progress - 0.40) / (this.config.splitProgress - 0.40));
             if (splitProx > 0) {
-                const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 120);
+                const pulse = 0.5 + 0.5 * Math.sin(this._age * 8.33); // pause-aware (≈ Date.now()/120 in real time)
                 ctx.save();
                 ctx.strokeStyle = `rgba(255,160,0,${0.35 + 0.55 * splitProx * pulse})`;
                 ctx.lineWidth = 1.5;
@@ -438,9 +445,8 @@ export class Missile {
         ctx.arc(sp.x, sp.y, 13, 0, Math.PI * 2);
         ctx.fill();
 
-        // Heading (toward target)
-        const hdx = this.targetX - this.x, hdy = this.targetY - this.y;
-        const heading = Math.atan2(hdy, hdx);
+        // Heading — use tracked movement direction (correct during loiter circle)
+        const heading = this._drawHeading;
 
         ctx.save();
         ctx.translate(sp.x, sp.y);
