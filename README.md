@@ -1,6 +1,8 @@
 # Qatar Air Defense Command
 
-A real-time tactical air defense game set over a live radar map of Qatar. Defend the peninsula against escalating waves of enemy missiles, drones, and bombers using a layered arsenal of interceptors — from Patriot batteries to the Iron Beam laser and C-RAM Phalanx guns.
+> **Version 1.0.0 · Alpha · March 2026**
+
+A real-time tactical air defense game set over an accurate radar map of Qatar. You command the CAOC (Combined Air Operations Center) and must defend the peninsula against dynamically escalating waves of enemy missiles, drones, bombers, and fighter jets. The game features a live coordinate-accurate map, synthesized Web Audio, voice callouts, a contextual AI difficulty agent that learns from your play style, a full military rank system, PSA cutscene intervals, and both web and Electron desktop builds.
 
 ---
 

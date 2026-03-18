@@ -1009,7 +1009,6 @@ export class UIManager {
         const headlineEl = document.getElementById('ministerHeadline');
         const bodyEl = document.getElementById('ministerBody');
         const rankLabelEl = document.getElementById('ministerRankLabel');
-        const ackBtn = document.getElementById('ministerAckBtn');
 
         if (isCourtMartial) {
             if (headlineEl) headlineEl.textContent = '⚠ COURT MARTIAL — DISHONORABLE DISCHARGE';
@@ -1017,7 +1016,6 @@ export class UIManager {
                 There is no further demotion possible. Your service record is permanently dishonored.
                 <br><br><strong style="color:#dc2626">MISSION FAILED — GAME OVER</strong>`;
             if (rankLabelEl) rankLabelEl.textContent = 'DISHONORABLE DISCHARGE';
-            if (ackBtn) ackBtn.textContent = 'ACCEPT CONSEQUENCES';
         } else {
             if (headlineEl) headlineEl.textContent = '⚠ OFFICIAL COMMUNIQUÉ';
             if (bodyEl) bodyEl.innerHTML = `The State of Qatar takes the accidental shootdown of civilian aircraft with the utmost
@@ -1026,7 +1024,6 @@ export class UIManager {
                 The Ministry of Defense has reviewed the incident and determined that disciplinary
                 action is warranted. Effective immediately, your rank has been reduced.`;
             if (rankLabelEl) rankLabelEl.textContent = 'RANK REDUCTION — EFFECTIVE IMMEDIATELY';
-            if (ackBtn) ackBtn.textContent = 'I ACKNOWLEDGE MY FAILURE';
         }
 
         // Populate rank names
@@ -1042,11 +1039,12 @@ export class UIManager {
             <span style="color:#94a3b8;font-size:0.8em;margin-left:6px">${newRank.nameAr}</span>`;
         overlay.style.display = 'flex';
 
-        const ackBtn = document.getElementById('ministerAckBtn');
-        if (ackBtn) {
-            const newAck = ackBtn.cloneNode(true);
-            ackBtn.parentNode.replaceChild(newAck, ackBtn);
-            document.getElementById('ministerAckBtn').addEventListener('click', () => {
+        const ackBtnOrig = document.getElementById('ministerAckBtn');
+        if (ackBtnOrig) {
+            const newAck = ackBtnOrig.cloneNode(true);
+            newAck.textContent = isCourtMartial ? 'ACCEPT CONSEQUENCES' : 'I ACKNOWLEDGE MY FAILURE';
+            ackBtnOrig.parentNode.replaceChild(newAck, ackBtnOrig);
+            newAck.addEventListener('click', () => {
                 overlay.style.display = 'none';
                 doneCb();
             }, { once: true });
