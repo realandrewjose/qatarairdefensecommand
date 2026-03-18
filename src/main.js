@@ -57,94 +57,43 @@ if (startScreen) {
     const bar = document.getElementById('loadFill');
     const pct = document.getElementById('loadCount');
 
-    // ── Asset preloading ───────────────────────────────────────────────────
-    const M = 'assets/sounds/Music/';
-    const ASSETS = [
-        // SFX
-        { src: 'assets/sounds/AirRaidSiren.mp3',                  label: 'Air Raid Siren' },
-        { src: 'assets/sounds/MissileAlert.mp3',                   label: 'Missile Alert' },
-        { src: 'assets/sounds/Explosion.mp3',                      label: 'Explosion SFX' },
-        { src: 'assets/sounds/InterceptionExplosion.mp3',          label: 'Intercept Explosion' },
-        { src: 'assets/sounds/Target Destroyed.mp3',               label: 'Target Destroyed' },
-        { src: 'assets/sounds/Sound Effect - Missile Launch.mp3',  label: 'Launch SFX' },
-        { src: 'assets/sounds/C-RAM.mp3',                          label: 'C-RAM Fire' },
-        { src: 'assets/sounds/C-RAMOpening.mp3',                   label: 'C-RAM Spin-Up' },
-        { src: 'assets/sounds/AllahUAkbaralt.mp3',                 label: 'Kill Voice 1' },
-        { src: 'assets/sounds/Confirm Kill.mp3',                   label: 'Kill Voice 2' },
-        { src: 'assets/sounds/Haihoom.mp3',                        label: 'Kill Voice 3' },
-        { src: 'assets/sounds/Allah U Akbar.m4a',                  label: 'Kill Voice 4' },
-        { src: 'assets/sounds/Mowashem.mp3',                       label: 'Kill Voice 5' },
-        { src: 'assets/sounds/Kamel.mp3',                          label: 'Kill Voice 6' },
-        { src: 'assets/sounds/Destroyed.mp3',                      label: 'Kill Voice 7' },
-        { src: 'assets/sounds/AlHamdulilah.mp3',                   label: 'Kill Voice 8' },
-        { src: 'assets/sounds/YaWatan.mp3',                        label: 'Kill Voice 9' },
-        { src: 'assets/sounds/TargetDestroyedCalloutVoice.mp3',    label: 'Kill Voice 10' },
-        // Music
-        { src: M + 'الآدعم.mp3',                                   label: 'Music: الآدعم' },
-        { src: M + 'أبشري يا دار  اخو روضة بنا _ كلمات_ محمد الصلابي.mp3',                                                        label: 'Music: أبشري يا دار' },
-        { src: M + 'أغنية_ حنا لها - كلمات_ فالح العجلان الهاجري - الحان_ عبدالله المناعي.mp3',                                    label: 'Music: أغنية حنا لها' },
-        { src: M + 'حنا بخير وديرة العز في خير - قطر_  تميم المجد 2017.mp3',                                                       label: 'Music: حنا بخير' },
-        { src: M + 'حنا هلك حنا هلك  نحمي جبالك وسهلك والمعنوية عاليه.mp3',                                                       label: 'Music: حنا هلك' },
-        { src: M + 'دار السعد - كلمات _ متعب ال سليمان المري -ألحان _ عبدالله المناعي - أداء _ المجموعه.mp3',                      label: 'Music: دار السعد' },
-        { src: M + 'زلزال -  فهد الحجاجي.mp3',                    label: 'Music: زلزال' },
-        { src: M + 'شربة الفنجان غناء _ فهد الحجاجي   كلمات _ خالد البوعينين   الحان _ حسن حامد.mp3',                             label: 'Music: شربة الفنجان' },
-        { src: M + 'شيلة نحبك ياتميم _ كلمات محمد النمران _ اداء خالد الشليه.mp3',                                                label: 'Music: نحبك ياتميم' },
-        { src: M + 'طرق خشوم (لطامة العايل) - فهد الحجاجي.mp3',   label: 'Music: طرق خشوم' },
-        { src: M + 'عـرضة مقـدام.mp3',                            label: 'Music: عرضة مقدام' },
-        { src: M + 'عيدي يا بلادي [ مبروك 2030 ] - كلمات  خليل الشبرمي - تطوير  غانم شاهين - غناء  المجموعة  ( حصري ).mp3',      label: 'Music: عيدي يا بلادي' },
-        { src: M + 'كلنا لك يا قطر سمعا وطاعه ( أسود تميم )   حصري.mp3',                                                          label: 'Music: كلنا لك يا قطر' },
-        { src: M + 'مراسم رفع علم دولة قطر على سفينة الزبارة في ايطاليا.mp3',                                                      label: 'Music: مراسم رفع علم' },
-        { src: M + 'يارباه __ كلمات خليل الشبرمي __ أداء عبدالعزيز العليوي.mp3',                                                   label: 'Music: يارباه' },
-        { src: M + 'يامطوعين الصعايب __ كلمات _ خليل الشبرمي __ أداء _ عبدالعزيز العليوي.mp3',                                     label: 'Music: يامطوعين الصعايب' },
-        // Images
-        { src: 'assets/images/Avatar.png',       label: 'Avatar', img: true },
-        { src: 'assets/images/QatarOutline.svg', label: 'Qatar Map', img: true },
-        { src: 'assets/images/qa.svg',           label: 'Qatar Flag', img: true },
+    // ── Pseudo progress bar — animates to 100% then unlocks button ──────────
+    const PHASES = [
+        { label: '◈ INITIALIZING RADAR SYSTEMS…',      target: 18,  delay: 120 },
+        { label: '◈ LOADING WEAPON SYSTEMS…',           target: 38,  delay: 90  },
+        { label: '◈ CALIBRATING DEFENSE GRID…',         target: 55,  delay: 80  },
+        { label: '◈ SYNCING THREAT DATABASE…',          target: 72,  delay: 70  },
+        { label: '◈ ARMING INTERCEPTORS…',              target: 85,  delay: 60  },
+        { label: '◈ ESTABLISHING COMMAND LINK…',        target: 95,  delay: 50  },
+        { label: '◈ DEFENSE SYSTEMS READY',             target: 100, delay: 40  },
     ];
 
-    const total = ASSETS.length;
-    let loadedCount = 0;
-    let unlocked = false;
+    let current = 0;
+    let phaseIdx = 0;
 
-    function assetLoaded(label) {
-        if (unlocked) return;
-        loadedCount++;
-        const pct100 = ((loadedCount / total) * 100).toFixed(1);
-        if (bar) bar.style.width = `${pct100}%`;
-        if (pct) pct.textContent = `${loadedCount} / ${total}`;
-        if (lbl) lbl.textContent = `◈ LOADING: ${label}`;
-        if (loadedCount >= total) unlock();
-    }
-
-    function unlock() {
-        if (unlocked) return;
-        unlocked = true;
-        if (lbl) lbl.textContent  = '◈ DEFENSE SYSTEMS READY';
-        if (bar) { bar.style.background = 'linear-gradient(90deg,#065f46,#10b981,#34d399)'; bar.style.width = '100%'; }
-        if (pct) pct.textContent  = `${total} / ${total}`;
-        if (beginBtn) { beginBtn.disabled = false; beginBtn.textContent = '▶ ACTIVATE DEFENSE SYSTEM'; }
-        if (loadingBar) setTimeout(() => { loadingBar.style.opacity = '0'; }, 1400);
-    }
-
-    // Show initial count
-    if (pct) pct.textContent = `0 / ${total}`;
-    if (bar) bar.style.width = '0%';
-
-    for (const asset of ASSETS) {
-        if (asset.img) {
-            // Images: use Image element — onload/onerror reliably fire
-            const img = new Image();
-            img.onload  = () => assetLoaded(asset.label);
-            img.onerror = () => assetLoaded(asset.label);
-            img.src = asset.src;
+    function tick() {
+        if (phaseIdx >= PHASES.length) return;
+        const phase = PHASES[phaseIdx];
+        if (current < phase.target) {
+            current++;
+            if (bar) bar.style.width = `${current}%`;
+            if (pct) pct.textContent = `${current}%`;
+            if (lbl) lbl.textContent = phase.label;
+            setTimeout(tick, phase.delay);
         } else {
-            // Audio: fetch() fully downloads the file — always resolves, no browser quirks
-            fetch(asset.src)
-                .then(r => r.arrayBuffer())
-                .then(() => assetLoaded(asset.label))
-                .catch(() => assetLoaded(asset.label));
+            phaseIdx++;
+            if (phaseIdx < PHASES.length) {
+                setTimeout(tick, 120);
+            } else {
+                // Done — unlock
+                if (bar) bar.style.background = 'linear-gradient(90deg,#065f46,#10b981,#34d399)';
+                if (beginBtn) { beginBtn.disabled = false; beginBtn.textContent = '▶ ACTIVATE DEFENSE SYSTEM'; }
+                if (loadingBar) setTimeout(() => { loadingBar.style.opacity = '0'; }, 1600);
+            }
         }
     }
+
+    setTimeout(tick, 300);
 
     // Video plays ambient in background — does NOT gate the button
     if (vid) {
