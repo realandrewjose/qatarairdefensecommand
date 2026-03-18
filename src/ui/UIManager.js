@@ -203,9 +203,6 @@ export class UIManager {
         this._updateHitBoard();
         this._updateInterval = setInterval(() => this._updateHUD(), 100);
         this.log('Qatar Air Defense System — ONLINE. Click a missile blip to intercept.', 'success');
-        // Show rank panel and init display
-        const rankPanel = document.getElementById('rankPanel');
-        if (rankPanel) rankPanel.style.display = 'flex';
         this._applyRankDisplay(this._currentRank);
     }
 
@@ -990,18 +987,8 @@ export class UIManager {
         if (currentIdx <= 1) {
             this._showMinisterScreen(this._currentRank, this._currentRank, () => {
                 // Hide minister overlay then return to start screen (full reload)
-                document.getElementById('ministerOverlay').style.display = 'none';
-                document.getElementById('rankPanel')?.style && (document.getElementById('rankPanel').style.display = 'none');
-                const startScreen = document.getElementById('startScreen');
-                if (startScreen) {
-                    startScreen.classList.remove('hidden', 'fade-out');
-                    startScreen.style.display = '';
-                    startScreen.style.opacity = '1';
-                }
-                // Stop the game cleanly
-                this.game.gameState.health = 0;
-                this.game.gameState.gameOver = true;
-                clearInterval(this._updateInterval);
+                // Reload page — returns to start screen, all cookies (incl. high score) preserved
+                location.reload();
             }, true /* isCourtMartial */);
             return;
         }
