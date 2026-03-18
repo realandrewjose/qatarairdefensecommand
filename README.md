@@ -1,6 +1,5 @@
 ﻿# Qatar Air Defense Command
 
-> **Version 1.0.0 · Final Release · March 2026**
 
 A real-time tactical air defense game set over an accurate radar map of Qatar. You command the CAOC (Combined Air Operations Center) and must defend the peninsula against dynamically escalating waves of enemy missiles, drones, bombers, and fighter jets. The game features a coordinate-accurate live map, synthesized Web Audio API sound effects, SpeechSynthesis voice callouts, a contextual AI difficulty agent that learns across sessions, a full Qatari military rank progression system, PSA cutscene intervals between waves, and both web and Electron desktop builds.
 
@@ -117,21 +116,6 @@ This runs `electron-builder --win` and outputs to `dist/`:
 | `Qatar Air Defense Command Setup 1.0.0.exe` | NSIS installer (allows choosing install directory) |
 | `Qatar Air Defense Command 1.0.0.exe` | Portable EXE (no install required) |
 | `win-unpacked/` | Raw unpacked application folder |
-
-### Unpacked Build (for external installer pipelines)
-
-Use this when you need only the unpacked desktop app payload:
-
-```bash
-npm run package:dir
-```
-
-Primary output:
-
-- `dist/win-unpacked/Qatar Air Defense Command.exe`
-- all runtime dependencies under `dist/win-unpacked/`
-
-This is the recommended handoff folder for custom installer creation.
 
 ### Electron Application Menu
 
@@ -1089,21 +1073,6 @@ This separation is intentional: player progression is lightweight and easy to cl
 | `npm run package` | `electron-builder --win` | Windows installer + portable EXE |
 | `npm run package:dir` | `electron-builder --win --dir` | Unpacked Windows desktop app only |
 
-### Final Release Build Order
-
-For release builds, run in this order:
-
-1. `npm ci`
-2. `npm run build`
-3. `npm run package:dir` (unpacked app)
-4. `npm run package` (installer + portable, if desired)
-
-Recommended verification before distribution:
-
-- Launch `dist/win-unpacked/Qatar Air Defense Command.exe`
-- Confirm rank data persists between relaunches
-- Confirm audio toggles and fullscreen controls work in desktop mode
-
 ### Webpack
 
 - Bundles ES module source into `dist/bundle.[hash].js`
@@ -1260,14 +1229,12 @@ Requirements: ES6 Modules · Canvas 2D API · Web Audio API · SpeechSynthesis A
 9. **Entity Pooling** — object pools for missiles/interceptors to reduce GC pressure
 10. **Positional Audio** — Web Audio `PannerNode` stereo positioning per threat
 
-> Note: this roadmap is post-1.0 and does not block current release quality.
-
 ---
 
 *This is an educational entertainment project. All scenarios are fictional. Qatar's real air defense capabilities are classified and far more sophisticated than depicted here.*
 
 ---
 
-**Last Updated**: March 18, 2026  
-**Project Status**: Final Release  
+**Last Updated**: March 17, 2026  
+**Project Status**: Alpha  
 **Version**: 1.0.0
