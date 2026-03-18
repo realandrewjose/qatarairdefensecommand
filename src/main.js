@@ -51,7 +51,8 @@ if (startScreen) {
     const beginBtn = document.getElementById('beginBtn');
     const vid      = document.getElementById('openingVideo');
 
-    // ── Loading bar (static HTML elements in index.html) ──────────────────
+
+    // ── Loading bar elements ───────────────────────────────────────────────
     const loadingBar = document.getElementById('loadingBar');
     const lbl = document.getElementById('loadLabel');
     const bar = document.getElementById('loadFill');
@@ -69,25 +70,20 @@ if (startScreen) {
         { ms: 9700, text: '◈ DEFENSE SYSTEMS READY'         },
     ];
 
-    // Set CSS transition then kick width to 100% — browser handles smooth fill
     if (bar) {
         bar.style.transition = `width ${TOTAL_MS}ms linear`;
-        // Force a reflow so the transition starts from 0%
-        bar.getBoundingClientRect();
+        bar.getBoundingClientRect(); // force reflow so transition starts from 0%
         bar.style.width = '100%';
     }
 
-    // Schedule label changes
     LABELS.forEach(({ ms, text }) => {
         setTimeout(() => { if (lbl) lbl.textContent = text; }, ms);
     });
 
-    // Schedule percentage counter
     for (let p = 0; p <= 100; p++) {
         setTimeout(() => { if (pct) pct.textContent = `${p}%`; }, TOTAL_MS * p / 100);
     }
 
-    // Unlock exactly at 10s
     setTimeout(() => {
         if (bar) bar.style.background = 'linear-gradient(90deg,#065f46,#10b981,#34d399)';
         if (beginBtn) { beginBtn.disabled = false; beginBtn.textContent = '▶ ACTIVATE DEFENSE SYSTEM'; }
