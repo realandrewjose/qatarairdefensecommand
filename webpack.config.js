@@ -37,8 +37,26 @@ export default (env, argv) => {
             }),
             new CopyWebpackPlugin({
                 patterns: [
-                    { from: 'assets', to: 'assets' },
-                    { from: 'styles', to: 'styles' },
+                    {
+                        context: 'assets',
+                        from: '**/*',
+                        to: 'assets/[path][name][ext]',
+                        noErrorOnMissing: true,
+                        globOptions: {
+                            dot: false,
+                            onlyFiles: true,
+                        },
+                    },
+                    {
+                        context: 'styles',
+                        from: '**/*',
+                        to: 'styles/[path][name][ext]',
+                        noErrorOnMissing: true,
+                        globOptions: {
+                            dot: false,
+                            onlyFiles: true,
+                        },
+                    },
                 ],
             }),
         ],
