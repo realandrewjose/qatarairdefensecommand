@@ -95,6 +95,15 @@ npm start
 
 This opens a 1400×900 Electron window that maximizes on startup.
 
+### Desktop Persistence
+
+The Electron build now uses a desktop persistence file instead of renderer cookies for career data such as rank, high score, total kills, playtime, best streak, and cumulative waves.
+
+- Electron storage file: `career-data.json`
+- Location: Electron user-data directory for the current platform
+- Browser build fallback: `localStorage`
+- Legacy cookie values are migrated on first load and then cleared
+
 ### Production Build (Windows installer + portable EXE)
 
 ```bash
@@ -175,7 +184,7 @@ After selecting a weapon, **click a blip** on the radar canvas to fire at it. Th
 | **SETTINGS** | Opens settings panel with volume sliders |
 | **⛶ FULLSCREEN** | Toggle browser/Electron fullscreen |
 | **🎬 PSA** | Enable/disable inter-wave PSA cutscenes |
-| **CLEAR DATA** | Wipe all saved cookies (rank, high score, stats) |
+| **CLEAR DATA** | Wipe all saved career data (rank, high score, stats) |
 
 ### Top Bar and Overlay UI
 
@@ -656,7 +665,7 @@ Spawn from the radar edge every ~45 seconds starting from Wave 2, drift inward, 
 | Type | Icon | Color | Effect |
 |------|------|-------|--------|
 | Emergency Funds | `$` | Amber | +$1,200 |
-| Repair Crew | `+` | Green | +25 HP, clears key cooldowns, restores disabled batteries, restores Al Udeid access |
+| Repair Crew | `+` | Green | +25 HP, clears key cooldowns, restores disabled batteries, restores Al Udeid and Al Khor availability |
 | Defense Shield | `◈` | Sky blue | 30 s damage immunity plus automatic interception of threats already inside Qatar |
 | Intel Burst | `◎` | Purple | Clears all radar ghost contacts |
 | Overclock | `⚡` | Cyan | 2× interceptor speed for 20 s |
@@ -669,7 +678,7 @@ Spawn weight: `funds` (×3), `repair` (×2), `shield`, `intel`, `overclock`, `am
 - Powerups have highest click priority on the radar.
 - Combo rewards can spawn bonus powerups directly at kill locations.
 - Shield powerup immediately clears hostile missiles already inside Qatar when collected.
-- Repair Crew is the most comprehensive recovery drop; it restores batteries and clears several disabled states in addition to healing.
+- Repair Crew is the most comprehensive recovery drop; it restores batteries, jet/frigate base availability, and several cooldown states in addition to healing.
 
 ---
 
@@ -703,7 +712,7 @@ Fake radar blips injected by enemy EW. Appear as ballistic, cruise, or drone con
 - Newly processed missiles are marked `_jammed = true` and retargeted to overshoot Qatar
 - Existing missiles are slowed heavily on activation, then ongoing jam logic stabilizes them at **60% speed** (`_jamMult = 0.60`)
 - Jammed missiles slide off-screen and do not register impacts
-- The activation log announces a 40% slowdown, but the continuous update path uses a 60% multiplier in current code
+- Activation and continuous jam logic now consistently reduce missiles to **60% of normal speed**
 
 ---
 
@@ -736,20 +745,22 @@ Key `7` or **FRIGATES** button ($1200; unlocks at Wave 11). Deploys a 7-ship squ
 
 ## 17. Rank & Progression System
 
-Rank persists via browser cookies. Based on **RepPoints**, not raw score.
+Rank persists through desktop file storage in Electron and `localStorage` in the browser build. It is based on **RepPoints**, not raw score.
 
 ### RepPoints Formula
 
 ```
 base = kills × 8
      + floor(playtimeSec / 60) × 50
-     + gamesPlayed × 30
+  + totalWaves × 12
+  + gamesPlayed × 40
      + bestStreak × 20
 
 multipliers applied cumulatively:
-  bestStreak ≥ 5   → +10%   bestStreak ≥ 10  → +12%
-  gamesPlayed ≥ 10 → +8%    gamesPlayed ≥ 25 → +10%
-  totalKills ≥ 200 → +8%    totalKills ≥ 500 → +10%
+  bestStreak ≥ 5    → +10%   bestStreak ≥ 10  → +12%
+  totalWaves ≥ 20   → +8%    totalWaves ≥ 50  → +10%
+  gamesPlayed ≥ 10  → +6%    gamesPlayed ≥ 30 → +8%
+  totalKills ≥ 200  → +8%    totalKills ≥ 500 → +10%
 
 RepPoints = max(0, round(base × mult) − penalty)
 ```
@@ -759,27 +770,27 @@ RepPoints = max(0, round(base × mult) − penalty)
 | # | English | Arabic | Category | Rep Required |
 |---|---------|--------|----------|-------------|
 | 1 | Jundi | جندي | Enlisted | 0 |
-| 2 | Wakil Earif | وكيل عريف | Enlisted | 800 |
-| 3 | Earif | عريف | Enlisted | 2,500 |
-| 4 | Nayib | نائب | Enlisted | 6,000 |
-| 5 | Raqib | رقيب | Enlisted | 12,000 |
-| 6 | Wakil Thani | وكيل ثاني | Enlisted | 22,000 |
-| 7 | Wakil Awwal | وكيل اول | Enlisted | 36,000 |
-| 8 | Mulazim | ملازم | Officer | 55,000 |
-| 9 | Mulazim Awwal | ملازم أول | Officer | 80,000 |
-| 10 | Naqib | نقيب | Officer | 115,000 |
-| 11 | Ra'id | رائد | Officer | 160,000 |
-| 12 | Muqaddam | مقدم | Officer | 220,000 |
-| 13 | Aqid | عقيد | Officer | 295,000 |
-| 14 | Amid | عميد | Officer | 385,000 |
-| 15 | Liwa | لواء | Officer | 490,000 |
-| 16 | Fariq | فريق | Officer | 620,000 |
-| 17 | Fariq Awwal | فريق أول | Officer | 790,000 |
+| 2 | Wakil Earif | وكيل عريف | Enlisted | 1,000 |
+| 3 | Earif | عريف | Enlisted | 3,000 |
+| 4 | Nayib | نائب | Enlisted | 7,500 |
+| 5 | Raqib | رقيب | Enlisted | 15,000 |
+| 6 | Wakil Thani | وكيل ثاني | Enlisted | 28,000 |
+| 7 | Wakil Awwal | وكيل اول | Enlisted | 46,000 |
+| 8 | Mulazim | ملازم | Officer | 70,000 |
+| 9 | Mulazim Awwal | ملازم أول | Officer | 100,000 |
+| 10 | Naqib | نقيب | Officer | 145,000 |
+| 11 | Ra'id | رائد | Officer | 200,000 |
+| 12 | Muqaddam | مقدم | Officer | 270,000 |
+| 13 | Aqid | عقيد | Officer | 360,000 |
+| 14 | Amid | عميد | Officer | 470,000 |
+| 15 | Liwa | لواء | Officer | 600,000 |
+| 16 | Fariq | فريق | Officer | 760,000 |
+| 17 | Fariq Awwal | فريق أول | Officer | 960,000 |
 
-### Persistent Cookie Keys
+### Persistent Career Keys
 
-| Cookie | Stores |
-|--------|--------|
+| Key | Stores |
+|-----|--------|
 | `qad_hs` | All-time high score |
 | `qad_cs` | Cumulative score |
 | `qad_gp` | Games played |
@@ -787,8 +798,9 @@ RepPoints = max(0, round(base × mult) − penalty)
 | `qad_pt` | Total playtime (seconds) |
 | `qad_ks` | Best kill streak |
 | `qad_rkp` | Rank penalty |
+| `qad_wv` | Total waves survived across all sessions |
 
-**CLEAR DATA** button in top bar permanently resets all cookies after confirmation.
+**CLEAR DATA** button in top bar permanently resets all stored career data after confirmation.
 
 ---
 
@@ -1009,7 +1021,7 @@ gameLoop(timestamp)
 
 The game currently uses two persistence systems:
 
-- **Cookies** for player-facing progression and historical stats such as rank, high score, games played, and streaks.
+- **Desktop file storage in Electron** and `localStorage` in the browser for player-facing progression and historical stats such as rank, high score, games played, and streaks.
 - **localStorage / IndexedDB** for the DDA agent's learned state and optional neural-net upgrade.
 
 This separation is intentional: player progression is lightweight and easy to clear from the UI, while AI learning persists independently across sessions.
@@ -1027,6 +1039,7 @@ This separation is intentional: player progression is lightweight and easy to cl
 | `npm run dev` | `webpack serve --mode development` | Webpack HMR dev server |
 | `npm run build` | `webpack --mode production` | Webpack production bundle |
 | `npm run package` | `electron-builder --win` | Windows installer + portable EXE |
+| `npm run package:dir` | `electron-builder --win --dir` | Unpacked Windows desktop app only |
 
 ### Webpack
 
@@ -1158,7 +1171,7 @@ Save $5,000 for double-PEAK sequences or a SATURATION wave while your batteries 
 
 ## 27. Browser Compatibility
 
-Requirements: ES6 Modules · Canvas 2D API · Web Audio API · SpeechSynthesis API (optional) · localStorage · Cookies · Fullscreen API (optional)
+Requirements: ES6 Modules · Canvas 2D API · Web Audio API · SpeechSynthesis API (optional) · localStorage · Fullscreen API (optional)
 
 | Browser | Min Version | Notes |
 |---------|------------|-------|

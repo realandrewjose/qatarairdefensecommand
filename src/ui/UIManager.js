@@ -122,14 +122,76 @@ const KILL_DISPLAY = {
     submunition:   { label: 'SUBMUNITION',   color: '#ff8833' },
 };
 
-// ── Cookie helpers for persistent high score ────────────────────────────────
-function _setCookie(name, val, days = 730) {
-    const exp = new Date(Date.now() + days * 86400000).toUTCString();
-    document.cookie = `${name}=${encodeURIComponent(val)};expires=${exp};path=/;SameSite=Lax`;
-}
+// ── Persistence helpers ─────────────────────────────────────────────────────
+const CAREER_KEYS = ['qad_hs', 'qad_cs', 'qad_gp', 'qad_tk', 'qad_pt', 'qad_ks', 'qad_rkp', 'qad_wv'];
+
 function _getCookie(name) {
     const m = document.cookie.split('; ').find(r => r.startsWith(name + '='));
     return m ? decodeURIComponent(m.split('=')[1]) : null;
+}
+
+function _clearCookie(name) {
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Lax`;
+}
+
+function _getElectronStore() {
+    return typeof window !== 'undefined' ? window.qadStorage ?? null : null;
+}
+
+function _getLocalValue(name) {
+    try {
+        return window.localStorage.getItem(name);
+    } catch {
+        return null;
+    }
+}
+
+function _setLocalValue(name, val) {
+    try {
+        window.localStorage.setItem(name, String(val));
+    } catch {}
+}
+
+function _removeLocalValue(name) {
+    try {
+        window.localStorage.removeItem(name);
+    } catch {}
+}
+
+function _getPersistedValue(name) {
+    const electronStore = _getElectronStore();
+    const electronValue = electronStore?.get?.(name);
+    if (electronValue !== null && electronValue !== undefined) return String(electronValue);
+
+    const localValue = _getLocalValue(name);
+    if (localValue !== null && localValue !== undefined) {
+        electronStore?.set?.(name, localValue);
+        return localValue;
+    }
+
+    const cookieValue = _getCookie(name);
+    if (cookieValue !== null && cookieValue !== undefined) {
+        _setLocalValue(name, cookieValue);
+        electronStore?.set?.(name, cookieValue);
+        _clearCookie(name);
+        return cookieValue;
+    }
+
+    return null;
+}
+
+function _setPersistedValue(name, val) {
+    _setLocalValue(name, val);
+    _getElectronStore()?.set?.(name, val);
+    _clearCookie(name);
+}
+
+function _clearPersistedValues(keys) {
+    keys.forEach(key => {
+        _removeLocalValue(key);
+        _getElectronStore()?.remove?.(key);
+        _clearCookie(key);
+    });
 }
 
 export class UIManager {
@@ -141,14 +203,14 @@ export class UIManager {
         this._impactCounts = {}; // hits taken by missile type
         this._totalImpacts = 0;
         this._waveTimer    = null;
-        this._highScore    = parseInt(_getCookie('qad_hs')  || '0', 10);
-        this._cumScore     = parseInt(_getCookie('qad_cs')  || '0', 10);
-        this._totalKills   = parseInt(_getCookie('qad_tk')  || '0', 10);
-        this._totalPlaytime= parseInt(_getCookie('qad_pt')  || '0', 10);
-        this._bestStreak   = parseInt(_getCookie('qad_ks')  || '0', 10);
-        this._totalWaves   = parseInt(_getCookie('qad_wv')  || '0', 10); // cumulative waves across all sessions
-        this._gamesPlayed  = parseInt(_getCookie('qad_gp')  || '0', 10); // full game-over sessions only
-        this._repPenalty   = parseInt(_getCookie('qad_rkp') || '0', 10);
+        this._highScore    = parseInt(_getPersistedValue('qad_hs')  || '0', 10);
+        this._cumScore     = parseInt(_getPersistedValue('qad_cs')  || '0', 10);
+        this._totalKills   = parseInt(_getPersistedValue('qad_tk')  || '0', 10);
+        this._totalPlaytime= parseInt(_getPersistedValue('qad_pt')  || '0', 10);
+        this._bestStreak   = parseInt(_getPersistedValue('qad_ks')  || '0', 10);
+        this._totalWaves   = parseInt(_getPersistedValue('qad_wv')  || '0', 10); // cumulative waves across all sessions
+        this._gamesPlayed  = parseInt(_getPersistedValue('qad_gp')  || '0', 10); // full game-over sessions only
+        this._repPenalty   = parseInt(_getPersistedValue('qad_rkp') || '0', 10);
         this._currentRank  = _getRank(_computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._gamesPlayed, this._bestStreak, this._repPenalty));
 
         // PSA cutscene state
@@ -187,7 +249,7 @@ export class UIManager {
 
         // Previous values — only write to DOM when value changes
         this._prev = { money: null, wave: null, score: null, threats: null, healthPct: null, shieldActive: null, best: null, rank: null };
-        // Init best display from cookie
+        // Init best display from persisted career storage
         if (this._els.bestDisplay) this._els.bestDisplay.textContent = this._highScore.toLocaleString();
 
         // Wire input log callback
@@ -336,13 +398,7 @@ export class UIManager {
 
         document.getElementById('clearDataBtn')?.addEventListener('click', () => {
             if (!confirm(`Clear all saved data?\n\nThis will permanently reset:\n• High Score\n• Rank (${this._currentRank.nameEn}) — you will return to Jundi\n• Total Kills: ${this._totalKills}\n• Playtime: ${Math.floor(this._totalPlaytime/60)} min\n• Games Played: ${this._gamesPlayed} | Total Waves: ${this._totalWaves}\n• Best Streak: ${this._bestStreak}\n\nThis cannot be undone.`)) return;
-            // Expire all cookies then recreate at 0
-            const KEYS = ['qad_hs','qad_cs','qad_gp','qad_tk','qad_pt','qad_ks','qad_rkp','qad_wv'];
-            // Delete each cookie (expire it), then immediately recreate with value 0
-            KEYS.forEach(k => {
-                document.cookie = `${k}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Lax`;
-                _setCookie(k, 0);
-            });
+            _clearPersistedValues(CAREER_KEYS);
             location.reload();
         });
     }
@@ -643,7 +699,7 @@ export class UIManager {
         // Best score — update live if player beats their record mid-game
         if (els.bestDisplay) {
             const live = gs.getScore();
-            if (live > this._highScore) { this._highScore = live; _setCookie('qad_hs', live); }
+            if (live > this._highScore) { this._highScore = live; _setPersistedValue('qad_hs', live); }
             els.bestDisplay.textContent = this._highScore.toLocaleString();
         }
 
@@ -953,19 +1009,19 @@ export class UIManager {
         }
         // Persist cumulative wave count immediately
         this._totalWaves++;
-        _setCookie('qad_wv', this._totalWaves);
+        _setPersistedValue('qad_wv', this._totalWaves);
     }
 
     _showGameOver(gs) {
         clearInterval(this._updateInterval);
         const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
-        // High score (cookie)
+        // High score persistence
         const score = gs.getScore();
         const isNewBest = score > this._highScore;
         if (isNewBest) {
             this._highScore = score;
-            _setCookie('qad_hs', score);
+            _setPersistedValue('qad_hs', score);
         }
         const hsEl = document.getElementById('finalHighScore');
         if (hsEl) {
@@ -976,7 +1032,7 @@ export class UIManager {
 
         // Update XP metrics for rank (independent of score)
         this._cumScore += score;
-        _setCookie('qad_cs', this._cumScore);
+        _setPersistedValue('qad_cs', this._cumScore);
 
         // Accumulate kills, playtime, best streak, games played
         const gameKills    = gs.getInterceptionsCount();
@@ -986,10 +1042,10 @@ export class UIManager {
         this._totalPlaytime += gamePlaytime;
         this._gamesPlayed++;
         if (gameStreak > this._bestStreak) this._bestStreak = gameStreak;
-        _setCookie('qad_tk', this._totalKills);
-        _setCookie('qad_pt', this._totalPlaytime);
-        _setCookie('qad_ks', this._bestStreak);
-        _setCookie('qad_gp', this._gamesPlayed);
+        _setPersistedValue('qad_tk', this._totalKills);
+        _setPersistedValue('qad_pt', this._totalPlaytime);
+        _setPersistedValue('qad_ks', this._bestStreak);
+        _setPersistedValue('qad_gp', this._gamesPlayed);
 
         const oldRank = this._currentRank;
         const newRepPoints = _computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._gamesPlayed, this._bestStreak, this._repPenalty);
@@ -1075,9 +1131,9 @@ export class UIManager {
             this._totalKills    += gameKills;
             this._totalPlaytime += gamePlaytime;
             if (gameStreak > this._bestStreak) this._bestStreak = gameStreak;
-            _setCookie('qad_tk', this._totalKills);
-            _setCookie('qad_pt', this._totalPlaytime);
-            _setCookie('qad_ks', this._bestStreak);
+            _setPersistedValue('qad_tk', this._totalKills);
+            _setPersistedValue('qad_pt', this._totalPlaytime);
+            _setPersistedValue('qad_ks', this._bestStreak);
 
             this._showMinisterScreen(this._currentRank, this._currentRank, () => {
                 location.reload();
@@ -1094,7 +1150,7 @@ export class UIManager {
         const currentRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._gamesPlayed, this._bestStreak, this._repPenalty);
         const needed = currentRp - targetRank.repPoints;
         if (needed > 0) this._repPenalty += needed;
-        _setCookie('qad_rkp', this._repPenalty);
+        _setPersistedValue('qad_rkp', this._repPenalty);
         this._currentRank = targetRank;
         this._applyRankDisplay(targetRank);
 

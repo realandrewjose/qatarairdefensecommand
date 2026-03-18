@@ -8,7 +8,8 @@
     "web":    "python -m http.server 8000",
     "dev":    "webpack serve --mode development",
     "build":  "webpack --mode production",
-    "package": "electron-builder --win"
+    "package": "electron-builder --win",
+    "package:dir": "electron-builder --win --dir"
   },
   "type": "module",
   "keywords": [
@@ -37,6 +38,7 @@
     "files": [
       "index.html",
       "electron-main.js",
+      "electron-preload.cjs",
       "src/**/*",
       "styles/**/*",
       "assets/**/*",

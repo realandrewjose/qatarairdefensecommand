@@ -10,6 +10,9 @@ export class InputHandler {
         this._hoveredMissile = null;
 
         this._setupListeners();
+
+        // React to battery hits/repairs — auto-switch away from fully-offline type
+        this.game.onBatteryStatusChange = (info) => this._onBatteryStatusChange(info);
     }
 
     _setupListeners() {
@@ -77,6 +80,11 @@ export class InputHandler {
             if (item.classList.contains('locked')) {
                 const w = item.dataset.unlocksAt;
                 this.log(`${item.dataset.type.toUpperCase()} unlocks at Wave ${w}.`, 'warning');
+                return;
+            }
+            if (item.classList.contains('battery-disabled')) {
+                const t = item.dataset.type.toUpperCase();
+                this.log(`${t} — all batteries OFFLINE. Cannot select until repaired.`, 'error');
                 return;
             }
             this.selectType(item.dataset.type);
@@ -189,7 +197,11 @@ export class InputHandler {
             return;
         }
 
-        const battery     = this.game.getNearestBattery(this.selectedType);
+        const battery = this.game.getNearestBattery(this.selectedType, targetMissile.x, targetMissile.y);
+        if (!battery) {
+            this.log(`${cfg.name} battery OFFLINE — no active battery available!`, 'error');
+            return;
+        }
         const interceptor = new Interceptor(battery.x, battery.y, targetMissile, this.selectedType);
         this.game.addInterceptor(interceptor);
         if (targetMissile.isGhost) {
@@ -218,9 +230,12 @@ export class InputHandler {
      *  Hardened targets (ballistic, mirv, hypersonic) automatically get 4 sequential bursts. */
     _fireCramBurst(targetMissile, cfg) {
         const gameState     = this.game.getGameState();
-        const cramBatteries = this.game.radar.getBatteries().filter(b => b.type === 'cram');
+        const batteryStatus = this.game.getBatteryStatus?.() || {};
+        const cramBatteries = this.game.radar.getBatteries().filter(b =>
+            b.type === 'cram' && (batteryStatus[b.id] || 0) <= 0
+        );
         if (cramBatteries.length === 0) {
-            this.log('No C-RAM batteries available.', 'warning');
+            this.log('All C-RAM batteries OFFLINE — Phalanx unavailable!', 'error');
             return;
         }
 
@@ -263,20 +278,56 @@ export class InputHandler {
 
         const tgtName   = targetMissile.config?.shortName || tgtType || 'target';
         const burstDesc = numBursts > 1 ? `${numBursts}× burst` : 'burst';
-        this.log(`C-RAM ${burstDesc} (${cramBatteries.length}× Phalanx ×${ROUNDS_PER} rds) → ${tgtName} — $${totalCost}`, 'success');
+        const offlineCount = this.game.radar.getBatteries().filter(b => b.type === 'cram').length - cramBatteries.length;
+        const offlineNote  = offlineCount > 0 ? ` [${offlineCount} offline]` : '';
+        this.log(`C-RAM ${burstDesc} (${cramBatteries.length}× Phalanx ×${ROUNDS_PER} rds${offlineNote}) → ${tgtName} — $${totalCost}`, 'success');
         document.getElementById('moneyDisplay').textContent = '$' + gameState.getMoney();
     }
 
-    selectType(type) {
+    selectType(type, { silent = false } = {}) {
         if (!INTERCEPTOR_TYPES[type]) return;
+        // Block selection of fully-offline weapon types
+        if (!this.game.isBatteryAvailable(type)) {
+            if (!silent) this.log(`${INTERCEPTOR_TYPES[type].name} — all batteries OFFLINE. Cannot select until repaired.`, 'error');
+            return;
+        }
         this.selectedType = type;
         document.querySelectorAll('.arsenal-item').forEach(el => {
             el.classList.toggle('selected', el.dataset.type === type);
-            // Close any open tooltip when switching weapons
             el.querySelector('.arsenal-tooltip')?.classList.remove('visible');
         });
-        const cfg = INTERCEPTOR_TYPES[type];
-        this.log(`Selected: ${cfg.name} — $${cfg.cost}/shot`, 'info');
+        if (!silent) {
+            const cfg = INTERCEPTOR_TYPES[type];
+            this.log(`Selected: ${cfg.name} — $${cfg.cost}/shot`, 'info');
+        }
+    }
+
+    // Called when a battery goes offline or comes back online.
+    // Auto-switches away from a fully-offline type; restores selection when repaired.
+    _onBatteryStatusChange({ type, activeCount, totalCount, online }) {
+        if (!online && activeCount === 0) {
+            // Current selection just went fully offline — switch to nearest available
+            if (this.selectedType === type) {
+                const PRIORITY = ['patriot', 'arrow', 'shorad', 'laser', 'cram'];
+                const fallback = PRIORITY.find(t => t !== type && this.game.isBatteryAvailable(t));
+                if (fallback) {
+                    this.selectedType = fallback; // set directly, bypassing selectType guard
+                    document.querySelectorAll('.arsenal-item').forEach(el => {
+                        el.classList.toggle('selected', el.dataset.type === fallback);
+                    });
+                    const cfg = INTERCEPTOR_TYPES[fallback];
+                    this.log(`⚠ All ${type.toUpperCase()} batteries offline — auto-switched to ${cfg.name}.`, 'warning');
+                }
+            }
+        } else if (online) {
+            // Battery repaired — if player had this type selected before it went offline,
+            // there's nothing to do automatically; they can re-select it themselves.
+            // But if nothing is currently selectable, switch back.
+            if (!this.game.isBatteryAvailable(this.selectedType)) {
+                this.selectType(type, { silent: true });
+                this.log(`◈ ${type.toUpperCase()} restored — auto-selected.`, 'info');
+            }
+        }
     }
 
     _openLegend() {

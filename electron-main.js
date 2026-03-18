@@ -1,9 +1,11 @@
 // Electron main process — Qatar Air Defense Command
-'use strict';
-const { app, BrowserWindow, Menu, shell, protocol, net } = require('electron');
-const path = require('path');
-const fs   = require('fs');
-const { pathToFileURL } = require('url');
+import { app, BrowserWindow, Menu, shell, protocol, net, ipcMain } from 'electron';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ── Must be called BEFORE app.whenReady() ─────────────────────────────────────
 // Register 'game://' as a secure, standard-origin scheme so that:
@@ -67,6 +69,7 @@ function createWindow() {
         backgroundColor: '#07090f',
         show: false,
         webPreferences: {
+            preload: path.join(__dirname, 'electron-preload.cjs'),
             nodeIntegration:            false,
             contextIsolation:           true,
             webSecurity:                true,
@@ -91,6 +94,10 @@ function createWindow() {
         return { action: 'deny' };
     });
 }
+
+ipcMain.on('qad:get-user-data-path', event => {
+    event.returnValue = app.getPath('userData');
+});
 
 // ── Application menu ──────────────────────────────────────────────────────────
 function buildMenu() {

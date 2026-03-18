@@ -38,14 +38,24 @@ const THREAT_ORIGINS = [
 ];
 
 const QATAR_TARGETS = [
-    { x:  0.111, y:  0.011, name: 'Doha',              weight: 5 },
-    { x:  0.037, y:  0.074, name: 'Al Udeid',          weight: 3 },
-    { x: -0.138, y: -0.041, name: 'Dukhan',            weight: 2 },
-    { x:  0.117, y: -0.311, name: 'Ras Laffan',        weight: 3 },
-    { x:  0.131, y:  0.055, name: 'Al Wakrah',         weight: 2 },
-    { x:  0.110, y: -0.289, name: 'North Base',        weight: 2 },
-    { x:  0.137, y:  0.022, name: 'Hamad Intl',        weight: 2 },
+    // ── Cities / infrastructure ───────────────────────────────────────────────
+    { x:  0.111, y:  0.011, name: 'Doha',               weight: 5 },
+    { x:  0.037, y:  0.074, name: 'Al Udeid',           weight: 3 },
+    { x: -0.138, y: -0.041, name: 'Dukhan',             weight: 2 },
+    { x:  0.117, y: -0.311, name: 'Ras Laffan',         weight: 3 },
+    { x:  0.131, y:  0.055, name: 'Al Wakrah',          weight: 2 },
+    { x:  0.110, y: -0.289, name: 'North Base',         weight: 2 },
+    { x:  0.137, y:  0.022, name: 'Hamad Intl',         weight: 2 },
     { x:  0.175, y: -0.133, name: 'Al Khor Naval Base', weight: 2 },
+    // ── Defense batteries — lower weight; battery hit = battery offline, minimal HP loss
+    { x: -0.068, y:  0.165, name: 'Alpha / Al-Shahaniya Desert', weight: 1 },
+    { x:  0.028, y: -0.205, name: 'Bravo / Fuwayrit Interior',   weight: 1 },
+    { x: -0.095, y: -0.040, name: 'Charlie / Zekreet Plateau',   weight: 1 },
+    { x: -0.012, y:  0.055, name: 'Delta / Umm Bab Desert',      weight: 1 },
+    { x:  0.045, y:  0.178, name: 'Echo / Al-Khasah Desert',     weight: 1 },
+    { x:  0.110, y:  0.015, name: 'C-RAM / Doha Port',           weight: 1 },
+    { x:  0.035, y:  0.082, name: 'C-RAM / Al Udeid',            weight: 1 },
+    { x:  0.098, y: -0.262, name: 'C-RAM / Ras Laffan',          weight: 1 },
 ];
 
 // Type unlock table — types available from a given wave onward
@@ -111,8 +121,9 @@ export class Game {
         this.onBorderCross     = null;
         this.onLog             = null;
         this.onHornetUnlocked  = null;
-        this.onCutscene         = null;   // (waveNum, doneCb) — called before every 5th wave
-        this.onCivilianIncident = null;
+        this.onCutscene             = null;   // (waveNum, doneCb) — called before every 5th wave
+        this.onCivilianIncident     = null;
+        this.onBatteryStatusChange  = null;   // ({type, id, name, activeCount, totalCount, online}) on hit/repair
 
         this._waitingForCutscene = false;
 
@@ -189,7 +200,6 @@ export class Game {
         // Shield (powerup)
         this._shieldActive   = false;
         this._shieldTimer    = 0;
-        this._shieldDuration = 8;
 
         // ── Heartbeat difficulty state machine ──────────────────────────────
         this._diffState         = 'BUILD';
@@ -229,6 +239,12 @@ export class Game {
         // Powerup drop timer
         this._powerupTimer    = 0;
         this._powerupInterval = 45; // seconds between drops
+
+        // ── SEAD pressure — enemy shifts to targeting batteries when intercept rate is high ──
+        // Rolling average intercept rate over the last 4 waves (0.0–1.0).
+        // At high rates the enemy begins treating batteries as priority targets (DEAD/SEAD).
+        this._recentInterceptRates = [];   // last N per-wave rates
+        this._seadPressure         = 0.0; // 0 = ignore batteries, 1 = batteries first
 
         // ── DDA: contextual bandit agent ─────────────────────────────────────
         this._ddaAgent       = new DifficultyAgent();
@@ -618,10 +634,44 @@ export class Game {
                 this.entityManager.addExplosion(new Explosion(ev.x ?? 0, ev.y ?? 0, 'intercept', '#38bdf8'));
                 return;
             }
+
             this._telemetry.missesThis++;
             this._ddaWaveMisses++;
-            // Missed impact donates TGP bonus to the AI
             this._tgp = Math.min(this._tgp + 12, 500);
+
+            // ── Battery targeted directly — battery absorbs the strike ────────
+            // Only applies when the missile explicitly targeted this battery (by name).
+            // A missile that targets a city but happens to land near a battery still
+            // deals full civilian damage — the battery was not the intended target.
+            const hitBattery = ev.targetName
+                ? this.radar.getBatteries().find(b => b.name === ev.targetName && (this._batteryDisabledWaves[b.id] || 0) <= 0)
+                : null;
+
+            if (hitBattery) {
+                // Negligible HP damage — shockwave only, ~8% of missile damage
+                const shockwaveDmg = Math.max(1, Math.round(ev.damage * 0.08));
+                this.gameState.damaged(shockwaveDmg);
+                this.triggerShake(0.25);
+                this.onImpact?.(shockwaveDmg, ev.missileType, hitBattery.name);
+                this.sound?.playEnemyExplosion();
+
+                this._batteryDisabledWaves[hitBattery.id] = 5;
+                this._updateRadarBatteries();
+                const allOfType   = this.radar.getBatteries().filter(x => x.type === hitBattery.type);
+                const activeLeft  = allOfType.filter(x => (this._batteryDisabledWaves[x.id] || 0) <= 0).length;
+                const totalOfType = allOfType.length;
+                if (activeLeft === 0) {
+                    this.onLog?.(`⚠ ${hitBattery.name} DESTROYED — ALL ${hitBattery.type.toUpperCase()} batteries OFFLINE for 5 waves! (-${shockwaveDmg} HP shockwave)`, 'error');
+                    this.sound?.speak(`All ${hitBattery.type} batteries offline.`, true);
+                } else {
+                    this.onLog?.(`⚠ ${hitBattery.name} HIT — ${activeLeft}/${totalOfType} ${hitBattery.type.toUpperCase()} remaining. (-${shockwaveDmg} HP shockwave)`, 'warning');
+                    this.sound?.speak(`${hitBattery.type} battery hit. ${activeLeft} remaining.`, true);
+                }
+                this.onBatteryStatusChange?.({ type: hitBattery.type, id: hitBattery.id, name: hitBattery.name, activeCount: activeLeft, totalCount: totalOfType, online: false });
+                return;
+            }
+
+            // ── Normal impact — full HP damage ────────────────────────────────
             this.gameState.damaged(ev.damage);
             this.triggerShake(0.4);
             this.onImpact?.(ev.damage, ev.missileType, ev.targetName);
@@ -639,21 +689,6 @@ export class Game {
                 this._frigateActive = false;
                 this.onLog?.('⚓ Al Khor Naval Base struck! Frigate squadron disabled for 8 waves.', 'error');
                 this.sound?.speak('Al Khor base hit. Naval operations suspended.', true);
-            }
-            // Check if impact hit a defense battery
-            if (ev.x !== undefined && ev.y !== undefined) {
-                const batteries = this.radar.getBatteries();
-                for (const b of batteries) {
-                    const dx = ev.x - b.x, dy = ev.y - b.y;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    if (dist < 0.09 && (this._batteryDisabledWaves[b.id] || 0) <= 0) {
-                        this._batteryDisabledWaves[b.id] = 5;
-                        this.onLog?.(`⚠ Battery ${b.name} HIT! ${b.type.toUpperCase()} unavailable for 5 waves!`, 'error');
-                        this._updateRadarBatteries();
-                        this.sound?.speak(`${b.type} battery offline.`, true);
-                        break;
-                    }
-                }
             }
         });
 
@@ -713,18 +748,8 @@ export class Game {
 
                 // Allied support / Shield: auto-destroy ADIZ crossers
                 if ((this._alliedSupportActive || this._shieldActive) && missile.active) {
-                    missile.active = false;
                     const isShield = !this._alliedSupportActive && this._shieldActive;
-                    const col = isShield ? '#38bdf8' : '#00aaff';
-                    this.gameState.addInterception();
-                    const d = Math.sqrt(missile.x * missile.x + missile.y * missile.y);
-                    this.gameState.addScore(Math.round((missile.reward || 0) * (1 + d * 4)));
-                    this.onInterception?.(0, missile.type);
-                    this.entityManager.addExplosion(new Explosion(missile.x, missile.y, 'intercept', col));
-                    this.sound?.playInterceptionExplosion();
-                    this.sound?.playKillSfx();
-                    const tag = isShield ? '◈ SHIELD' : '◈ ALLIED';
-                    this.onLog?.(`${tag} INTERCEPT — ${missile.type} neutralized at ADIZ`, 'success');
+                    this._registerAutoIntercept(missile, isShield ? '#38bdf8' : '#00aaff', isShield ? '◈ SHIELD' : '◈ ALLIED');
                 }
             }
         });
@@ -737,28 +762,19 @@ export class Game {
             this.entityManager.getMissiles().forEach(missile => {
                 if (!missile.active) return;
                 if (!this.radar.isInsideQatar(missile.x, missile.y)) return;
-                missile.active = false;
-                this.gameState.addInterception();
-                const d = Math.sqrt(missile.x * missile.x + missile.y * missile.y);
-                this.gameState.addScore(Math.round((missile.reward || 0) * (1 + d * 4)));
-                this.onInterception?.(0, missile.type);
-                this.entityManager.addExplosion(new Explosion(missile.x, missile.y, 'intercept', _aic));
-                this.sound?.playInterceptionExplosion();
-                this.sound?.playKillSfx();
-                this.onLog?.(`${_tag} INTERCEPT — ${missile.type} neutralized at ADIZ`, 'success');
+                this._registerAutoIntercept(missile, _aic, _tag);
             });
             this.entityManager.getBombers().forEach(bomber => {
                 if (!bomber.active) return;
                 if (!this.radar.isInsideQatar(bomber.x, bomber.y)) return;
                 bomber.damage(9999);
-                this.onLog?.(`${_tag} INTERCEPT — Bomber neutralized at ADIZ`, 'success');
+                if (!bomber.isActive()) this._registerAutoIntercept(bomber, _aic, _tag);
             });
             this.entityManager.getEnemyFighters().forEach(fighter => {
                 if (!fighter.active) return;
                 if (!this.radar.isInsideQatar(fighter.x, fighter.y)) return;
                 fighter.active = false;
-                this.entityManager.addExplosion(new Explosion(fighter.x, fighter.y, 'intercept', _aic));
-                this.onLog?.(`${_tag} INTERCEPT — Bogey neutralized at ADIZ`, 'success');
+                this._registerAutoIntercept(fighter, _aic, _tag);
             });
         }
 
@@ -785,6 +801,24 @@ export class Game {
             this.sound?.speak('Defense system failure. Qatar has fallen.', true);
             this.onGameOver?.(this.gameState);
         }
+    }
+
+    _registerAutoIntercept(target, color, tag) {
+        if (!target) return;
+
+        target.active = false;
+
+        const reward = target.reward || 0;
+        const dist = Math.sqrt((target.x || 0) * (target.x || 0) + (target.y || 0) * (target.y || 0));
+        const label = target.config?.name || target.type || 'threat';
+
+        this.gameState.addInterception();
+        this.gameState.addScore(Math.round(reward * (1 + dist * 4)));
+        this.onInterception?.(0, target.type);
+        this.entityManager.addExplosion(new Explosion(target.x || 0, target.y || 0, 'intercept', color));
+        this.sound?.playInterceptionExplosion();
+        this.sound?.playKillSfx();
+        this.onLog?.(`${tag} INTERCEPT — ${label} neutralized at ADIZ`, 'success');
     }
 
     render() {
@@ -1090,8 +1124,13 @@ export class Game {
                 if (this._batteryDisabledWaves[id] === 0) {
                     const b = this.radar.getBatteries().find(bat => bat.id === id);
                     if (b) {
-                        this.onLog?.(`◈ Battery ${b.name} repaired — ${b.type.toUpperCase()} restored!`, 'success');
                         this._updateRadarBatteries();
+                        const allOfType   = this.radar.getBatteries().filter(x => x.type === b.type);
+                        const activeCount = allOfType.filter(x => (this._batteryDisabledWaves[x.id] || 0) <= 0).length;
+                        this.onLog?.(`◈ ${b.name} repaired — ${b.type.toUpperCase()} restored (${activeCount}/${allOfType.length} online).`, 'success');
+                        this.onBatteryStatusChange?.({ type: b.type, id: b.id, name: b.name, activeCount, totalCount: allOfType.length, online: true });
+                        // Enemy scouts repaired battery — spike SEAD pressure so they try to disable it again
+                        this._seadPressure = Math.min(1.0, this._seadPressure + 0.35);
                     }
                 }
             }
@@ -1153,7 +1192,15 @@ export class Game {
                 console.warn('[DDA] step error — using last action:', ddaErr);
             }
         }
-        // Reset per-wave DDA counters
+        // Reset per-wave DDA counters + update SEAD pressure
+        if (waveNum > 1 && this._ddaWaveTotal > 0) {
+            const rate = this._ddaWaveIntercepts / this._ddaWaveTotal;
+            this._recentInterceptRates.push(rate);
+            if (this._recentInterceptRates.length > 4) this._recentInterceptRates.shift();
+            const avg = this._recentInterceptRates.reduce((a, b) => a + b, 0) / this._recentInterceptRates.length;
+            // Pressure ramps up smoothly: 0 below 40% intercept rate, reaches 1.0 at 90%+
+            this._seadPressure = Math.max(0, Math.min(1, (avg - 0.40) / 0.50));
+        }
         this._ddaWaveIntercepts = 0;
         this._ddaWaveMisses     = 0;
         this._ddaPrevHealth     = this.gameState.health;
@@ -1365,10 +1412,7 @@ export class Game {
             targetY    = tgtShip.y + (Math.random() - 0.5) * 0.04;
             targetName = tgtShip.callsign;
         } else {
-            const totalTW = QATAR_TARGETS.reduce((s, t) => s + t.weight, 0);
-            let rndT = Math.random() * totalTW;
-            let target = QATAR_TARGETS[0];
-            for (const t of QATAR_TARGETS) { rndT -= t.weight; if (rndT <= 0) { target = t; break; } }
+            const target = this._pickTarget();
             targetX    = target.x + (Math.random() - 0.5) * 0.06;
             targetY    = target.y + (Math.random() - 0.5) * 0.06;
             targetName = target.name;
@@ -1403,10 +1447,7 @@ export class Game {
 
     spawnMissileFrom(fromX, fromY, type) {
         if (this.gameState.isGameOver()) return;
-        const totalTW = QATAR_TARGETS.reduce((s, t) => s + t.weight, 0);
-        let rndT = Math.random() * totalTW;
-        let target = QATAR_TARGETS[0];
-        for (const t of QATAR_TARGETS) { rndT -= t.weight; if (rndT <= 0) { target = t; break; } }
+        const target  = this._pickTarget();
         const targetX = target.x + (Math.random() - 0.5) * 0.06;
         const targetY = target.y + (Math.random() - 0.5) * 0.06;
         const waveScaling = 1.0 + Math.min((this.gameState.getWaveCount() - 1) * 0.04, 1.5);
@@ -1728,13 +1769,57 @@ export class Game {
         return bestDist < 0.18 ? nearest : null;
     }
 
-    getNearestBattery(preferredType) {
-        const batteries = this.radar.getBatteries().filter(b =>
-            (this._batteryDisabledWaves[b.id] || 0) <= 0
+    // Picks a target from QATAR_TARGETS with dynamic SEAD weighting.
+    // At low intercept rates, batteries are low-priority (weight 1 vs cities 2-5).
+    // As the rolling intercept rate climbs past 40%, enemy progressively shifts
+    // targeting to active defense batteries (SEAD/DEAD doctrine).
+    // When a battery comes back online the SEAD pressure spikes to re-target it.
+    _pickTarget() {
+        const batteries = this.radar.getBatteries();
+        const disabledIds = new Set(
+            Object.entries(this._batteryDisabledWaves)
+                  .filter(([, v]) => v > 0)
+                  .map(([k]) => k)
         );
-        return batteries.find(b => b.type === preferredType)
-            || batteries.find(b => b.type !== preferredType)
-            || this.radar.getBatteries()[0];
+
+        // Build dynamic weight list — batteries get a SEAD multiplier on top of base weight 1
+        // Dead (already-offline) batteries get weight 0; enemy won't waste missiles on them
+        const seadMult = 1 + this._seadPressure * 9; // 1× (no pressure) → 10× (full pressure)
+        const batteryNames = new Set(batteries.map(b => b.name));
+
+        const targets = QATAR_TARGETS.map(t => {
+            if (!batteryNames.has(t.name)) return { ...t }; // city / infra — unchanged
+            const battery = batteries.find(b => b.name === t.name);
+            if (battery && disabledIds.has(battery.id)) return { ...t, weight: 0 }; // already offline
+            return { ...t, weight: t.weight * seadMult };
+        }).filter(t => t.weight > 0);
+
+        const totalTW = targets.reduce((s, t) => s + t.weight, 0);
+        let rndT = Math.random() * totalTW;
+        let target = targets[0];
+        for (const t of targets) { rndT -= t.weight; if (rndT <= 0) { target = t; break; } }
+        return target;
+    }
+
+    getNearestBattery(preferredType, worldX = 0, worldY = 0) {
+        const active = this.radar.getBatteries().filter(b =>
+            b.type === preferredType && (this._batteryDisabledWaves[b.id] || 0) <= 0
+        );
+        if (active.length === 0) return null;
+
+        let nearest = active[0];
+        let bestDist = Infinity;
+        for (const battery of active) {
+            const dx = battery.x - worldX;
+            const dy = battery.y - worldY;
+            const dist = dx * dx + dy * dy;
+            if (dist < bestDist) {
+                bestDist = dist;
+                nearest = battery;
+            }
+        }
+
+        return nearest;
     }
 
     getGameTime()   { return this._gameTime   || 0; }
@@ -1840,8 +1925,8 @@ export class Game {
         this._ewActive = true;
         this._ewTimer  = this._ewDuration;
         // Apply jam to all current missiles
-        for (const m of this.entityManager.getMissiles()) m._jamMult = 0.40;
-        this.onLog?.('⚡ EW JAMMER ACTIVE — All missiles at 40% speed for 3 minutes!', 'success');
+        for (const m of this.entityManager.getMissiles()) m._jamMult = 0.60;
+        this.onLog?.('⚡ EW JAMMER ACTIVE — All missiles reduced to 60% speed for 3 minutes!', 'success');
         this.sound?.speak('Electronic warfare jamming activated.');
         return { ok: true };
     }
@@ -1947,7 +2032,9 @@ export class Game {
                 this._ewCooldown        = 0;
                 this.jetDispatchCooldown = 0;
                 this.hornetCooldown     = 0;
+                this.frigateCooldown    = 0;
                 this.jetDisabledWaves   = 0;
+                this._frigateDisabledWaves = 0;
                 this._batteryDisabledWaves = {};
                 this._updateRadarBatteries();
                 this.onLog?.(`✚ Repair crew deployed! +${cfg.amount} HP — all systems restored!`, 'success');
