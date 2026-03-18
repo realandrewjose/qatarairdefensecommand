@@ -1,6 +1,5 @@
 ﻿# Qatar Air Defense Command
 
-> **Version 1.0.0 · Alpha · March 2026**
 
 A real-time tactical air defense game set over an accurate radar map of Qatar. You command the CAOC (Combined Air Operations Center) and must defend the peninsula against dynamically escalating waves of enemy missiles, drones, bombers, and fighter jets. The game features a coordinate-accurate live map, synthesized Web Audio API sound effects, SpeechSynthesis voice callouts, a contextual AI difficulty agent that learns across sessions, a full Qatari military rank progression system, PSA cutscene intervals between waves, and both web and Electron desktop builds.
 
@@ -765,27 +764,60 @@ multipliers applied cumulatively:
 RepPoints = max(0, round(base × mult) − penalty)
 ```
 
-### Full Rank Table
+### Full Rank Table (with Insignia)
 
-| # | English | Arabic | Category | Rep Required |
-|---|---------|--------|----------|-------------|
-| 1 | Jundi | جندي | Enlisted | 0 |
-| 2 | Wakil Earif | وكيل عريف | Enlisted | 1,000 |
-| 3 | Earif | عريف | Enlisted | 3,000 |
-| 4 | Nayib | نائب | Enlisted | 7,500 |
-| 5 | Raqib | رقيب | Enlisted | 15,000 |
-| 6 | Wakil Thani | وكيل ثاني | Enlisted | 28,000 |
-| 7 | Wakil Awwal | وكيل اول | Enlisted | 46,000 |
-| 8 | Mulazim | ملازم | Officer | 70,000 |
-| 9 | Mulazim Awwal | ملازم أول | Officer | 100,000 |
-| 10 | Naqib | نقيب | Officer | 145,000 |
-| 11 | Ra'id | رائد | Officer | 200,000 |
-| 12 | Muqaddam | مقدم | Officer | 270,000 |
-| 13 | Aqid | عقيد | Officer | 360,000 |
-| 14 | Amid | عميد | Officer | 470,000 |
-| 15 | Liwa | لواء | Officer | 600,000 |
-| 16 | Fariq | فريق | Officer | 760,000 |
-| 17 | Fariq Awwal | فريق أول | Officer | 960,000 |
+| # | Insignia | English | Arabic | NATO Equivalent | Category | Rep Required |
+|---|----------|---------|--------|-----------------|----------|-------------|
+| 1 | HUD chevron fallback (no image file) | Jundi | جندي | Private | Enlisted | 0 |
+| 2 | ![Wakil Earif](assets/Rank/Wakil%20Earif.png) | Wakil Earif | وكيل عريف | Lance Corporal | Enlisted | 1,000 |
+| 3 | ![Earif](assets/Rank/Earif.png) | Earif | عريف | Corporal | Enlisted | 3,000 |
+| 4 | ![Nayib](assets/Rank/Nayib.png) | Nayib | نائب | Sergeant | Enlisted | 7,500 |
+| 5 | ![Raqib](assets/Rank/Raqib.png) | Raqib | رقيب | Staff Sergeant | Enlisted | 15,000 |
+| 6 | ![Wakil Thani](assets/Rank/Wakil%20thani.png) | Wakil Thani | وكيل ثاني | Warrant Officer Class 2 | Enlisted | 28,000 |
+| 7 | ![Wakil Awwal](assets/Rank/Wakil%20awwal.png) | Wakil Awwal | وكيل اول | Warrant Officer Class 1 | Enlisted | 46,000 |
+| 8 | ![Mulazim](assets/Rank/Mulazim.png) | Mulazim | ملازم | 2nd Lieutenant | Officer | 70,000 |
+| 9 | ![Mulazim Awwal](assets/Rank/Mulazim%20awwal.png) | Mulazim Awwal | ملازم أول | 1st Lieutenant | Officer | 100,000 |
+| 10 | ![Naqib](assets/Rank/Naqib.png) | Naqib | نقيب | Captain | Officer | 145,000 |
+| 11 | ![Ra'id](assets/Rank/Ra%27id.png) | Ra'id | رائد | Major | Officer | 200,000 |
+| 12 | ![Muqaddam](assets/Rank/Muqaddam.png) | Muqaddam | مقدم | Lieutenant Colonel | Officer | 270,000 |
+| 13 | ![Aqid](assets/Rank/Aqid.png) | Aqid | عقيد | Colonel | Officer | 360,000 |
+| 14 | ![Amid](assets/Rank/Amid.png) | Amid | عميد | Brigadier General | Officer | 470,000 |
+| 15 | ![Liwa](assets/Rank/Liwa.png) | Liwa | لواء | Major General | Officer | 600,000 |
+| 16 | ![Fariq](assets/Rank/Fariq.png) | Fariq | فريق | Lieutenant General | Officer | 760,000 |
+| 17 | ![Fariq Awwal](assets/Rank/Fariq%20awwal.png) | Fariq Awwal | فريق أول | General | Officer | 960,000 |
+
+### Insignia Gallery
+
+#### Enlisted
+
+| Rank | Insignia |
+|------|----------|
+| Jundi | HUD fallback chevron (no file in `assets/Rank`) |
+| Wakil Earif | <img src="assets/Rank/Wakil%20Earif.png" alt="Wakil Earif" height="56"> |
+| Earif | <img src="assets/Rank/Earif.png" alt="Earif" height="56"> |
+| Nayib | <img src="assets/Rank/Nayib.png" alt="Nayib" height="56"> |
+| Raqib | <img src="assets/Rank/Raqib.png" alt="Raqib" height="56"> |
+| Wakil Thani | <img src="assets/Rank/Wakil%20thani.png" alt="Wakil Thani" height="56"> |
+| Wakil Awwal | <img src="assets/Rank/Wakil%20awwal.png" alt="Wakil Awwal" height="56"> |
+
+#### Officer
+
+| Rank | Insignia |
+|------|----------|
+| Mulazim | <img src="assets/Rank/Mulazim.png" alt="Mulazim" height="56"> |
+| Mulazim Awwal | <img src="assets/Rank/Mulazim%20awwal.png" alt="Mulazim Awwal" height="56"> |
+| Naqib | <img src="assets/Rank/Naqib.png" alt="Naqib" height="56"> |
+| Ra'id | <img src="assets/Rank/Ra%27id.png" alt="Ra'id" height="56"> |
+| Muqaddam | <img src="assets/Rank/Muqaddam.png" alt="Muqaddam" height="56"> |
+| Aqid | <img src="assets/Rank/Aqid.png" alt="Aqid" height="56"> |
+| Amid | <img src="assets/Rank/Amid.png" alt="Amid" height="56"> |
+| Liwa | <img src="assets/Rank/Liwa.png" alt="Liwa" height="56"> |
+| Fariq | <img src="assets/Rank/Fariq.png" alt="Fariq" height="56"> |
+| Fariq Awwal | <img src="assets/Rank/Fariq%20awwal.png" alt="Fariq Awwal" height="56"> |
+
+### Rank Data Source
+
+Rank names, thresholds, and NATO-equivalent mappings are defined in `src/ui/UIManager.js` under the `RANKS` constant and are used directly by the in-game rank chip, rank overlay, and game-over summary.
 
 ### Persistent Career Keys
 
