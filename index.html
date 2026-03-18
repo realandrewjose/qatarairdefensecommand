@@ -186,45 +186,30 @@
             <div style="margin-left:auto;flex-shrink:0;display:flex;gap:6px;align-items:center">
 
                 <!-- Rank chip -->
-                <div style="display:flex;align-items:center;gap:7px;
-                            background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.20);
-                            border-radius:7px;padding:4px 10px;position:relative">
+                <div style="display:flex;align-items:center;gap:10px;
+                            background:rgba(255,215,0,0.07);border:1px solid rgba(255,215,0,0.28);
+                            border-radius:8px;padding:6px 12px;position:relative">
                     <!-- Insignia -->
                     <img id="rankInsignia" src="" alt=""
-                         style="height:32px;width:auto;object-fit:contain;display:none;
-                                filter:drop-shadow(0 0 4px rgba(255,215,0,0.4))">
-                    <svg id="rankJundiFallback" viewBox="0 0 40 28" width="40" height="28" style="display:none">
-                        <polyline points="4,22 20,6 36,22"
-                                  stroke="#ffd700" stroke-width="5" fill="none"
+                         style="height:38px;width:auto;object-fit:contain;display:none;
+                                filter:drop-shadow(0 0 5px rgba(255,215,0,0.5))">
+                    <svg id="rankJundiFallback" viewBox="0 0 44 30" width="44" height="30" style="display:none">
+                        <polyline points="4,24 22,6 40,24"
+                                  stroke="#ffd700" stroke-width="5.5" fill="none"
                                   stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                     <!-- Text -->
-                    <div style="display:flex;flex-direction:column;gap:1px;line-height:1">
-                        <span id="rankCat"    style="color:#64748b;font-family:monospace;font-size:0.50em;letter-spacing:2px">ENLISTED</span>
-                        <span id="rankNameEn" style="color:#ffd700;font-family:monospace;font-size:0.72em;font-weight:900;letter-spacing:1px">JUNDI</span>
-                        <span id="rankNameAr" style="color:#94a3b8;font-family:monospace;font-size:0.62em;direction:rtl">جندي</span>
+                    <div style="display:flex;flex-direction:column;gap:3px;line-height:1">
+                        <span id="rankCat"    style="color:#94a3b8;font-family:monospace;font-size:0.62em;letter-spacing:2px;font-weight:600">ENLISTED</span>
+                        <span id="rankNameEn" style="color:#ffd700;font-family:monospace;font-size:0.85em;font-weight:900;letter-spacing:1.5px">JUNDI</span>
+                        <span id="rankNameAr" style="color:#cbd5e1;font-family:monospace;font-size:0.75em;direction:rtl">جندي</span>
                     </div>
                     <!-- Info button -->
                     <button id="rankInfoBtn"
-                            style="background:none;border:1px solid rgba(255,215,0,0.25);
-                                   color:#fbbf24;font-size:0.68em;font-weight:700;
-                                   padding:2px 6px;border-radius:4px;cursor:pointer;
-                                   font-family:monospace;letter-spacing:0.5px">ⓘ</button>
-                    <!-- Progress popup -->
-                    <div id="rankInfoPopup" style="display:none;position:absolute;top:calc(100% + 6px);right:0;
-                         background:rgba(4,7,18,0.97);border:1px solid rgba(255,215,0,0.25);
-                         border-radius:7px;padding:10px 14px;min-width:160px;z-index:3000;
-                         box-shadow:0 4px 20px rgba(0,0,0,0.7)">
-                        <div style="color:#64748b;font-family:monospace;font-size:0.55em;
-                             letter-spacing:2px;margin-bottom:6px">TO NEXT RANK</div>
-                        <div style="background:rgba(255,255,255,0.07);border-radius:3px;height:5px;overflow:hidden">
-                            <div id="rankProgress" style="height:100%;width:0%;
-                                 background:linear-gradient(90deg,#fbbf24,#ffd700);
-                                 transition:width 0.4s ease"></div>
-                        </div>
-                        <div id="rankProgressLabel" style="color:#94a3b8;font-family:monospace;
-                             font-size:0.55em;margin-top:5px;text-align:right"></div>
-                    </div>
+                            style="background:rgba(255,215,0,0.10);border:1px solid rgba(255,215,0,0.35);
+                                   color:#ffd700;font-size:0.80em;font-weight:800;
+                                   padding:4px 9px;border-radius:5px;cursor:pointer;
+                                   font-family:monospace">ⓘ</button>
                 </div>
 
                 <button id="legendBtn"         class="ctrl-btn">📋 LEGEND</button>
@@ -589,6 +574,81 @@
         if (e.persisted) location.reload(true);
     });
 </script>
+
+<!-- ── Rank Info Overlay ── -->
+<div id="rankInfoOverlay" style="display:none;position:fixed;inset:0;z-index:9500;
+     background:rgba(0,0,0,0.80);backdrop-filter:blur(8px);
+     align-items:center;justify-content:center">
+    <div style="position:relative;background:#080f1e;
+                border:1px solid rgba(255,215,0,0.35);border-radius:16px;
+                padding:40px 48px 36px;max-width:540px;width:92%;
+                box-shadow:0 0 80px rgba(255,215,0,0.07),0 12px 48px rgba(0,0,0,0.9)">
+
+        <!-- Close button -->
+        <button id="rankInfoCloseBtn"
+                style="position:absolute;top:16px;right:18px;background:rgba(255,255,255,0.05);
+                       border:1px solid rgba(255,255,255,0.20);color:#cbd5e1;
+                       font-size:1.1em;width:32px;height:32px;border-radius:7px;
+                       cursor:pointer;font-family:monospace;
+                       display:flex;align-items:center;justify-content:center">✕</button>
+
+        <!-- Header -->
+        <div style="color:#94a3b8;font-family:monospace;font-size:0.75em;
+             letter-spacing:4px;text-transform:uppercase;margin-bottom:6px">Qatar Armed Forces</div>
+        <div style="color:#ffd700;font-family:monospace;font-size:1.4em;font-weight:900;
+             letter-spacing:2px;margin-bottom:28px;text-shadow:0 0 20px rgba(255,215,0,0.3)">RANK RECORD</div>
+
+        <!-- Current rank row -->
+        <div style="display:flex;align-items:center;gap:24px;margin-bottom:32px;
+                    background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.20);
+                    border-radius:12px;padding:20px 24px">
+            <div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <img id="rankInfoInsignia" src="" alt=""
+                     style="max-width:80px;max-height:80px;object-fit:contain;display:none;
+                            filter:drop-shadow(0 0 10px rgba(255,215,0,0.55))">
+                <svg id="rankInfoJundiFallback" viewBox="0 0 80 56" width="80" height="56" style="display:none">
+                    <polyline points="8,44 40,10 72,44"
+                              stroke="#ffd700" stroke-width="7" fill="none"
+                              stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+                <span id="rankInfoCat"    style="color:#94a3b8;font-family:monospace;font-size:0.78em;letter-spacing:3px;font-weight:600">ENLISTED</span>
+                <span id="rankInfoNameEn" style="color:#ffd700;font-family:monospace;font-size:1.25em;font-weight:900;letter-spacing:2px;text-shadow:0 0 12px rgba(255,215,0,0.4)">JUNDI</span>
+                <span id="rankInfoNameAr" style="color:#e2e8f0;font-family:monospace;font-size:1.0em;direction:rtl">جندي</span>
+            </div>
+        </div>
+
+        <!-- Progress to next rank -->
+        <div style="margin-bottom:24px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <span style="color:#94a3b8;font-family:monospace;font-size:0.78em;letter-spacing:2px;font-weight:600">PROGRESS TO NEXT RANK</span>
+                <span id="rankInfoNextName" style="color:#fbbf24;font-family:monospace;font-size:0.82em;font-weight:800"></span>
+            </div>
+            <div style="background:rgba(255,255,255,0.08);border-radius:5px;height:10px;overflow:hidden">
+                <div id="rankProgress" style="height:100%;width:0%;
+                     background:linear-gradient(90deg,#92400e,#f59e0b,#ffd700);
+                     transition:width 0.5s ease;
+                     box-shadow:0 0 10px rgba(255,215,0,0.5)"></div>
+            </div>
+            <div id="rankProgressLabel" style="color:#94a3b8;font-family:monospace;
+                 font-size:0.75em;margin-top:8px;text-align:right"></div>
+        </div>
+
+        <!-- Stats grid -->
+        <div style="border-top:1px solid rgba(255,255,255,0.10);padding-top:20px;
+                    display:grid;grid-template-columns:1fr 1fr;gap:12px 8px">
+            <div style="color:#94a3b8;font-family:monospace;font-size:0.78em;letter-spacing:1px;font-weight:600">TOTAL KILLS</div>
+            <div id="rankInfoKills"  style="color:#f1f5f9;font-family:monospace;font-size:0.85em;font-weight:700;text-align:right">—</div>
+            <div style="color:#94a3b8;font-family:monospace;font-size:0.78em;letter-spacing:1px;font-weight:600">GAMES PLAYED</div>
+            <div id="rankInfoGames"  style="color:#f1f5f9;font-family:monospace;font-size:0.85em;font-weight:700;text-align:right">—</div>
+            <div style="color:#94a3b8;font-family:monospace;font-size:0.78em;letter-spacing:1px;font-weight:600">BEST STREAK</div>
+            <div id="rankInfoStreak" style="color:#f1f5f9;font-family:monospace;font-size:0.85em;font-weight:700;text-align:right">—</div>
+            <div style="color:#94a3b8;font-family:monospace;font-size:0.78em;letter-spacing:1px;font-weight:600">REP POINTS</div>
+            <div id="rankInfoRp"     style="color:#ffd700;font-family:monospace;font-size:0.90em;font-weight:900;text-align:right">—</div>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

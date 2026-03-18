@@ -212,36 +212,65 @@ export class UIManager {
         const catEl       = document.getElementById('rankCat');
         const nameEnEl    = document.getElementById('rankNameEn');
         const nameArEl    = document.getElementById('rankNameAr');
-        const progressEl  = document.getElementById('rankProgress');
-        const progressLbl = document.getElementById('rankProgressLabel');
-
         // Insignia: real image or Jundi SVG chevron fallback
         if (rank.file) {
-            if (insigniaEl)  { insigniaEl.src = `assets/Rank/${rank.file}`; insigniaEl.style.display = 'block'; }
+            if (insigniaEl)    { insigniaEl.src = `assets/Rank/${rank.file}`; insigniaEl.style.display = 'block'; }
             if (jundiFallback) jundiFallback.style.display = 'none';
         } else {
-            if (insigniaEl)  insigniaEl.style.display = 'none';
+            if (insigniaEl)    insigniaEl.style.display = 'none';
             if (jundiFallback) jundiFallback.style.display = 'block';
         }
 
         if (catEl)    catEl.textContent    = rank.cat;
         if (nameEnEl) nameEnEl.textContent = rank.nameEn.toUpperCase();
         if (nameArEl) nameArEl.textContent = rank.nameAr;
+    }
 
-        // Progress bar toward next rank
-        const nextIdx = RANKS.indexOf(rank) + 1;
-        if (progressEl) {
-            if (nextIdx < RANKS.length) {
-                const next = RANKS[nextIdx];
-                const effectiveRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._gamesPlayed, this._bestStreak, this._repPenalty);
-                const pct = Math.min(100, Math.round(((effectiveRp - rank.repPoints) / (next.repPoints - rank.repPoints)) * 100));
-                progressEl.style.width = pct + '%';
-                if (progressLbl) progressLbl.textContent = `${pct}% → ${next.nameEn}`;
-            } else {
-                progressEl.style.width = '100%';
-                if (progressLbl) progressLbl.textContent = 'MAX RANK';
-            }
+    _showRankInfoOverlay() {
+        const overlay = document.getElementById('rankInfoOverlay');
+        if (!overlay) return;
+
+        const rank = this._currentRank;
+        const effectiveRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._gamesPlayed, this._bestStreak, this._repPenalty);
+
+        // Insignia
+        const ins = document.getElementById('rankInfoInsignia');
+        const jf  = document.getElementById('rankInfoJundiFallback');
+        if (rank.file) {
+            if (ins) { ins.src = `assets/Rank/${rank.file}`; ins.style.display = 'block'; }
+            if (jf)  jf.style.display = 'none';
+        } else {
+            if (ins) ins.style.display = 'none';
+            if (jf)  jf.style.display = 'block';
         }
+
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('rankInfoCat',    rank.cat);
+        set('rankInfoNameEn', rank.nameEn.toUpperCase());
+        set('rankInfoNameAr', rank.nameAr);
+        set('rankInfoKills',  this._totalKills.toLocaleString());
+        set('rankInfoGames',  this._gamesPlayed.toLocaleString());
+        set('rankInfoStreak', this._bestStreak.toLocaleString());
+        set('rankInfoRp',     effectiveRp.toLocaleString());
+
+        // Progress bar
+        const nextIdx = RANKS.indexOf(rank) + 1;
+        const progressEl  = document.getElementById('rankProgress');
+        const progressLbl = document.getElementById('rankProgressLabel');
+        const nextNameEl  = document.getElementById('rankInfoNextName');
+        if (nextIdx < RANKS.length) {
+            const next = RANKS[nextIdx];
+            const pct = Math.min(100, Math.round(((effectiveRp - rank.repPoints) / (next.repPoints - rank.repPoints)) * 100));
+            if (progressEl)  progressEl.style.width = pct + '%';
+            if (progressLbl) progressLbl.textContent = `${effectiveRp.toLocaleString()} / ${next.repPoints.toLocaleString()} RP`;
+            if (nextNameEl)  nextNameEl.textContent  = next.nameEn.toUpperCase();
+        } else {
+            if (progressEl)  progressEl.style.width = '100%';
+            if (progressLbl) progressLbl.textContent = 'MAX RANK ACHIEVED';
+            if (nextNameEl)  nextNameEl.textContent  = '';
+        }
+
+        overlay.style.display = 'flex';
     }
 
     _initTopBarButtons() {
@@ -255,43 +284,32 @@ export class UIManager {
             });
         }
 
-        // Rank info button — toggle progress popup
+        // Rank info button — open overlay
         document.getElementById('rankInfoBtn')?.addEventListener('click', () => {
-            const popup = document.getElementById('rankInfoPopup');
-            if (!popup) return;
-            const visible = popup.style.display !== 'none';
-            popup.style.display = visible ? 'none' : 'block';
-            this._applyRankDisplay(this._currentRank); // refresh progress
+            this._showRankInfoOverlay();
+        });
+
+        // Close button on rank info overlay
+        document.getElementById('rankInfoCloseBtn')?.addEventListener('click', () => {
+            const overlay = document.getElementById('rankInfoOverlay');
+            if (overlay) overlay.style.display = 'none';
         });
 
         document.getElementById('clearDataBtn')?.addEventListener('click', () => {
             if (!confirm(`Clear all saved data?\n\nThis will permanently reset:\n• High Score\n• Rank (${this._currentRank.nameEn}) — you will return to Jundi\n• Total Kills: ${this._totalKills}\n• Playtime: ${Math.floor(this._totalPlaytime/60)} min\n• Games Played: ${this._gamesPlayed}\n• Best Streak: ${this._bestStreak}\n\nThis cannot be undone.`)) return;
             // Expire the high score cookie
-            document.cookie = 'qad_hs=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-            this._highScore = 0;
-            this._cumScore    = 0;
-            this._gamesPlayed = 0;
-            this._currentRank = RANKS[0];
-            document.cookie = 'qad_cs=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-            document.cookie = 'qad_gp=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-            document.cookie = 'qad_tk=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-            document.cookie = 'qad_pt=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-            document.cookie = 'qad_ks=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-            document.cookie = 'qad_rkp=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-            this._totalKills    = 0;
-            this._totalPlaytime = 0;
-            this._bestStreak    = 0;
-            this._repPenalty    = 0;
-            this._applyRankDisplay(RANKS[0]);
-            if (this._els?.bestDisplay) this._els.bestDisplay.textContent = '0';
-            this.log('◉ Saved data cleared.', 'info');
+            const KEYS = ['qad_hs','qad_cs','qad_gp','qad_tk','qad_pt','qad_ks','qad_rkp'];
+            // Delete each cookie (expire it), then immediately recreate with value 0
+            KEYS.forEach(k => {
+                document.cookie = `${k}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Lax`;
+                _setCookie(k, 0);
+            });
+            location.reload();
         });
     }
 
     _playCutscene(waveNum, doneCb) {
         if (!this._cutsceneEnabled || this._psaDone || this._psaIndex >= this._psaPlaylist.length) {
-            if (!this._cutsceneEnabled) { doneCb(); return; }
-            this._psaDone = true;
             doneCb();
             return;
         }
@@ -305,17 +323,23 @@ export class UIManager {
         const src = this._psaPlaylist[this._psaIndex++];
         if (this._psaIndex >= this._psaPlaylist.length) this._psaDone = true;
 
-        // Prepare video but don't play yet
         video.src = src;
         video.currentTime = 0;
         video.style.visibility = 'hidden';
-
-        // Show overlay with intro screen
         if (intro) intro.style.display = 'flex';
         overlay.style.display = 'flex';
 
+        // Guards — nothing fires twice
+        let closed = false;
+        let videoStarted = false;
+
         const close = () => {
+            if (closed) return;
+            closed = true;
             window.speechSynthesis?.cancel();
+            clearTimeout(speechTimer);
+            clearTimeout(videoFallbackTimer);
+            video.onended = null;
             video.pause();
             video.src = '';
             overlay.style.display = 'none';
@@ -323,44 +347,49 @@ export class UIManager {
             doneCb();
         };
 
+        let videoFallbackTimer;
         const playVideo = () => {
+            if (closed || videoStarted) return;
+            videoStarted = true;
             if (intro) intro.style.display = 'none';
             video.style.visibility = 'visible';
-            video.play().catch(() => {});
             video.onended = close;
+            // Fallback: if video never ends (play blocked, format issue), close after 90s max
+            videoFallbackTimer = setTimeout(close, 90000);
+            video.play().catch(() => {
+                // Play blocked — skip cutscene immediately
+                close();
+            });
         };
 
-        // Speak intro text in English, then play video
+        // Speech intro then video
         const INTRO_TEXT = 'Ministry of Interior. This is not a drill. This is a public service announcement.';
+        let speechTimer;
         if (window.speechSynthesis) {
             window.speechSynthesis.cancel();
             const utt = new SpeechSynthesisUtterance(INTRO_TEXT);
-            utt.rate  = 0.82;
-            utt.pitch = 0.72;
-            utt.volume = 1.0;
+            utt.rate = 0.82; utt.pitch = 0.72; utt.volume = 1.0;
             const voices = window.speechSynthesis.getVoices();
             const voice =
                 voices.find(v => v.lang === 'en-US' && /male|david|mark|richard/i.test(v.name)) ||
-                voices.find(v => v.lang === 'en-GB' && /male|daniel/i.test(v.name)) ||
                 voices.find(v => v.lang.startsWith('en-US')) ||
                 voices.find(v => v.lang.startsWith('en')) ||
                 voices[0];
             if (voice) utt.voice = voice;
             utt.onend   = playVideo;
             utt.onerror = playVideo;
-            // Safety: if speech never fires, start video after 5s
-            const speechTimeout = setTimeout(playVideo, 5000);
-            utt.onend = () => { clearTimeout(speechTimeout); playVideo(); };
+            speechTimer = setTimeout(playVideo, 5000); // fallback if speech stalls
             window.speechSynthesis.speak(utt);
         } else {
-            // No speech API — show intro for 3s then play
-            setTimeout(playVideo, 3000);
+            speechTimer = setTimeout(playVideo, 2500);
         }
 
-        // Wire skip button (clone to remove stale listeners)
-        const newSkip = skipBtn.cloneNode(true);
-        skipBtn.parentNode.replaceChild(newSkip, skipBtn);
-        document.getElementById('cutsceneSkipBtn').addEventListener('click', close, { once: true });
+        // Skip button — clone to clear old listeners
+        if (skipBtn) {
+            const newSkip = skipBtn.cloneNode(true);
+            skipBtn.parentNode.replaceChild(newSkip, skipBtn);
+            newSkip.addEventListener('click', close, { once: true });
+        }
     }
 
     _initTabs() {
@@ -985,9 +1014,21 @@ export class UIManager {
 
         // Jundi (0) or Wakil Awwal (1) — civilian hit = court martial → restart to start screen
         if (currentIdx <= 1) {
+            // Save session stats before reload so RepPoints accumulate
+            const gs = this.game.gameState;
+            const gameKills    = gs.getInterceptionsCount?.() ?? 0;
+            const gamePlaytime = this.game.getGameTime?.()    ?? 0;
+            const gameStreak   = this.game.getPeakStreak?.()  ?? 0;
+            this._gamesPlayed++;
+            this._totalKills    += gameKills;
+            this._totalPlaytime += gamePlaytime;
+            if (gameStreak > this._bestStreak) this._bestStreak = gameStreak;
+            _setCookie('qad_gp', this._gamesPlayed);
+            _setCookie('qad_tk', this._totalKills);
+            _setCookie('qad_pt', this._totalPlaytime);
+            _setCookie('qad_ks', this._bestStreak);
+
             this._showMinisterScreen(this._currentRank, this._currentRank, () => {
-                // Hide minister overlay then return to start screen (full reload)
-                // Reload page — returns to start screen, all cookies (incl. high score) preserved
                 location.reload();
             }, true /* isCourtMartial */);
             return;
