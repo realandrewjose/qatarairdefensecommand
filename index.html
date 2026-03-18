@@ -152,6 +152,20 @@
                     <span class="stat-lbl">BEST</span>
                     <span class="stat-val" style="color:#fcd34d" id="bestDisplay">0</span>
                 </div>
+                <div class="stat-chip" style="flex-direction:row;align-items:center;gap:7px;padding:4px 10px">
+                    <img id="rankInsignia" src="" alt="" style="height:28px;width:auto;display:none;object-fit:contain">
+                    <div style="display:flex;flex-direction:column;gap:1px">
+                        <span class="stat-lbl" id="rankCat" style="font-size:0.55em;letter-spacing:1.5px">ENLISTED</span>
+                        <span id="rankNameEn" style="color:#ffd700;font-family:monospace;font-size:0.75em;font-weight:800;letter-spacing:1px">JUNDI</span>
+                        <span id="rankNameAr" style="color:#94a3b8;font-family:monospace;font-size:0.65em;direction:rtl">جندي</span>
+                    </div>
+                </div>
+                <div class="stat-chip" style="flex-direction:column;gap:2px;min-width:60px">
+                    <span class="stat-lbl">TO NEXT RANK</span>
+                    <div style="background:rgba(255,255,255,0.08);border-radius:2px;height:4px;overflow:hidden;width:100%">
+                        <div id="rankProgress" style="height:100%;width:0%;background:linear-gradient(90deg,#fbbf24,#ffd700);transition:width 0.4s ease"></div>
+                    </div>
+                </div>
                 <div class="stat-chip">
                     <span class="stat-lbl">KILLS</span>
                     <span class="stat-val green" id="interceptionsDisplay">0</span>
@@ -166,10 +180,11 @@
                 </div>
             </div>
             <div style="margin-left:auto;flex-shrink:0;display:flex;gap:6px;align-items:center">
-                <button id="legendBtn"       class="ctrl-btn">📋 LEGEND</button>
-                <button id="settingsBtn"     class="ctrl-btn">⚙ SETTINGS</button>
-                <button id="clearDataBtn"    class="ctrl-btn" title="Clear saved high score">🗑 CLEAR DATA</button>
-                <button id="fullscreenBtn"   class="ctrl-btn" title="Toggle Fullscreen">⛶ FULLSCREEN</button>
+                <button id="legendBtn"         class="ctrl-btn">📋 LEGEND</button>
+                <button id="settingsBtn"       class="ctrl-btn">⚙ SETTINGS</button>
+                <button id="cutsceneToggleBtn" class="ctrl-btn" title="Enable or disable PSA cutscenes">🎬 PSA: ON</button>
+                <button id="clearDataBtn"      class="ctrl-btn" title="Clear saved high score">🗑 CLEAR DATA</button>
+                <button id="fullscreenBtn"     class="ctrl-btn" title="Toggle Fullscreen">⛶ FULLSCREEN</button>
             </div>
 
         </div>
@@ -295,6 +310,10 @@
             <div class="go-row"><span>Waves Survived</span>       <span id="finalWaves">—</span></div>
             <div class="go-row"><span>Total Score</span>          <span id="finalMoney">—</span></div>
             <div class="go-row"><span>All-Time Best</span>        <span id="finalHighScore" style="color:#fcd34d">—</span></div>
+            <div class="go-row"><span>Current Rank</span>         <div id="finalRank" style="display:flex;align-items:center">—</div></div>
+            <div id="finalRankUp" style="display:none;text-align:center;margin:6px 0;font-family:monospace;letter-spacing:1px"></div>
+            <div class="go-row"><span>Cumulative Score</span>     <span id="finalCumScore" style="color:#a78bfa">—</span></div>
+            <div class="go-row"><span>Games Played</span>         <span id="finalGamesPlayed" style="color:#94a3b8">—</span></div>
             <div class="go-row"><span>Targets Destroyed</span>    <span id="finalInterceptions">—</span></div>
             <div class="go-row"><span>Hits Taken</span>           <span id="finalHitTotal" style="color:#f87171">—</span></div>
             <div class="go-row"><span>Cost Exchange Ratio</span>  <span id="finalExchangeRatio">—</span></div>
@@ -321,6 +340,155 @@
         Qatar Air Defense Command requires a
         <strong style="color:#fff">landscape screen of at least 10 inches</strong>.<br><br>
         Please use a desktop or laptop computer.
+    </div>
+</div>
+
+<!-- ── Minister of Defense Overlay (civilian shootdown penalty) ── -->
+<div id="ministerOverlay" style="display:none;position:fixed;inset:0;z-index:99800;
+     background:radial-gradient(ellipse at center,#0a0005 0%,#000 100%);
+     align-items:center;justify-content:center;flex-direction:column">
+
+    <!-- Top decorative bar -->
+    <div style="position:fixed;top:0;left:0;right:0;height:6px;
+                background:linear-gradient(90deg,#7f1d1d,#dc2626,#991b1b,#dc2626,#7f1d1d)"></div>
+    <div style="position:fixed;bottom:0;left:0;right:0;height:6px;
+                background:linear-gradient(90deg,#7f1d1d,#dc2626,#991b1b,#dc2626,#7f1d1d)"></div>
+
+    <div style="max-width:680px;width:90%;text-align:center;padding:48px 40px;
+                border:1px solid rgba(220,38,38,0.35);border-radius:4px;
+                background:rgba(10,0,5,0.95);
+                box-shadow:0 0 60px rgba(220,38,38,0.15),inset 0 0 80px rgba(0,0,0,0.8)">
+
+        <!-- Header emblem line -->
+        <div style="color:#dc2626;font-family:monospace;font-size:0.65em;letter-spacing:8px;
+                    text-transform:uppercase;margin-bottom:20px;opacity:0.7">
+            ◈ ─────────── ◈ ─────────── ◈
+        </div>
+
+        <div style="color:#dc2626;font-family:monospace;font-size:0.75em;font-weight:900;
+                    letter-spacing:5px;text-transform:uppercase;margin-bottom:4px">
+            MINISTRY OF DEFENSE
+        </div>
+        <div style="color:#94a3b8;font-family:monospace;font-size:0.60em;letter-spacing:4px;margin-bottom:28px">
+            STATE OF QATAR — دولة قطر
+        </div>
+
+        <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(220,38,38,0.6),transparent);margin-bottom:28px"></div>
+
+        <div id="ministerHeadline" style="color:#fca5a5;font-family:monospace;font-size:0.85em;font-weight:800;
+                    letter-spacing:3px;margin-bottom:24px;text-transform:uppercase">
+            ⚠ OFFICIAL COMMUNIQUÉ
+        </div>
+
+        <div id="ministerBody" style="color:#e2e8f0;font-family:Georgia,serif;font-size:0.88em;line-height:2.0;
+                    margin-bottom:32px;text-align:left;padding:0 8px">
+            The State of Qatar takes the accidental shootdown of civilian aircraft with the utmost
+            seriousness. Your actions have cost the lives of innocent civilians and brought the
+            country significant international embarrassment.<br><br>
+            The Ministry of Defense has reviewed the incident and determined that disciplinary
+            action is warranted. Effective immediately, your rank has been reduced.
+        </div>
+
+        <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(220,38,38,0.4),transparent);margin-bottom:28px"></div>
+
+        <div id="ministerRankLabel" style="color:#64748b;font-family:monospace;font-size:0.65em;letter-spacing:3px;margin-bottom:14px">
+            RANK REDUCTION — EFFECTIVE IMMEDIATELY
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:32px;flex-wrap:wrap">
+            <div id="ministerOldRank" style="display:flex;align-items:center;font-family:monospace"></div>
+            <div style="color:#dc2626;font-size:1.4em">→</div>
+            <div id="ministerNewRank" style="display:flex;align-items:center;font-family:monospace"></div>
+        </div>
+
+        <div style="color:#dc2626;font-family:monospace;font-size:0.62em;letter-spacing:2px;
+                    margin-bottom:28px;opacity:0.7">
+            ◈ ─────────── ◈ ─────────── ◈
+        </div>
+
+        <button id="ministerAckBtn"
+                style="background:linear-gradient(135deg,#7f1d1d,#991b1b);
+                       border:1px solid #dc2626;color:#fca5a5;
+                       font-family:monospace;font-size:0.80em;font-weight:700;
+                       padding:14px 40px;border-radius:3px;cursor:pointer;
+                       letter-spacing:3px;text-transform:uppercase;
+                       box-shadow:0 0 20px rgba(220,38,38,0.3);
+                       transition:all 0.2s">
+            I ACKNOWLEDGE MY FAILURE
+        </button>
+    </div>
+</div>
+
+<!-- ── Promotion Overlay ── -->
+<div id="promotionOverlay" style="display:none;position:fixed;inset:0;z-index:99800;
+     background:radial-gradient(ellipse at center,#0a0800 0%,#000 100%);
+     align-items:center;justify-content:center;flex-direction:column">
+
+    <!-- Gold accent bars -->
+    <div style="position:fixed;top:0;left:0;right:0;height:5px;
+                background:linear-gradient(90deg,#78350f,#fbbf24,#d97706,#fbbf24,#78350f)"></div>
+    <div style="position:fixed;bottom:0;left:0;right:0;height:5px;
+                background:linear-gradient(90deg,#78350f,#fbbf24,#d97706,#fbbf24,#78350f)"></div>
+
+    <div style="max-width:600px;width:90%;text-align:center;padding:52px 40px;
+                border:1px solid rgba(251,191,36,0.30);border-radius:4px;
+                background:rgba(10,8,0,0.97);
+                box-shadow:0 0 80px rgba(251,191,36,0.12),inset 0 0 80px rgba(0,0,0,0.8)">
+
+        <div style="color:#d97706;font-family:monospace;font-size:0.65em;letter-spacing:8px;margin-bottom:20px;opacity:0.8">
+            ✦ ─────────── ✦ ─────────── ✦
+        </div>
+
+        <div style="color:#fbbf24;font-family:monospace;font-size:0.72em;font-weight:900;
+                    letter-spacing:5px;margin-bottom:4px">QATAR ARMED FORCES</div>
+        <div style="color:#78350f;font-family:monospace;font-size:0.60em;letter-spacing:4px;margin-bottom:32px">
+            OFFICE OF PROMOTIONS & DISTINCTIONS
+        </div>
+
+        <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(251,191,36,0.5),transparent);margin-bottom:32px"></div>
+
+        <div style="color:#fde68a;font-family:monospace;font-size:1.0em;font-weight:900;
+                    letter-spacing:4px;margin-bottom:8px;text-transform:uppercase">
+            ★  PROMOTION  ★
+        </div>
+        <div style="color:#a16207;font-family:monospace;font-size:0.68em;letter-spacing:2px;margin-bottom:36px">
+            FROM <span id="promoOldName" style="color:#fbbf24"></span>
+        </div>
+
+        <img id="promoNewInsignia" src="" alt=""
+             style="height:90px;width:auto;object-fit:contain;display:none;
+                    margin:0 auto 20px;filter:drop-shadow(0 0 16px rgba(251,191,36,0.6))">
+
+        <div id="promoNewName"
+             style="color:#ffd700;font-family:monospace;font-size:1.6em;font-weight:900;
+                    letter-spacing:5px;text-transform:uppercase;margin-bottom:8px"></div>
+        <div id="promoNewAr"
+             style="color:#fbbf24;font-family:monospace;font-size:1.1em;
+                    direction:rtl;margin-bottom:8px"></div>
+        <div id="promoNewCat"
+             style="color:#92400e;font-family:monospace;font-size:0.65em;
+                    letter-spacing:4px;margin-bottom:36px"></div>
+
+        <div style="color:#92400e;font-family:Georgia,serif;font-size:0.82em;
+                    line-height:1.8;margin-bottom:36px;font-style:italic">
+            Your service, dedication, and performance in the defense of Qatar<br>
+            have been recognized by the Armed Forces Command.
+        </div>
+
+        <div style="color:#78350f;font-family:monospace;font-size:0.65em;letter-spacing:8px;margin-bottom:28px;opacity:0.8">
+            ✦ ─────────── ✦ ─────────── ✦
+        </div>
+
+        <button id="promoContinueBtn"
+                style="background:linear-gradient(135deg,#78350f,#a16207);
+                       border:1px solid #fbbf24;color:#fde68a;
+                       font-family:monospace;font-size:0.80em;font-weight:700;
+                       padding:14px 40px;border-radius:3px;cursor:pointer;
+                       letter-spacing:3px;text-transform:uppercase;
+                       box-shadow:0 0 24px rgba(251,191,36,0.25);
+                       transition:all 0.2s">
+            FOR QATAR  ✦  للقطر
+        </button>
     </div>
 </div>
 

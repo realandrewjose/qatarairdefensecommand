@@ -71,7 +71,7 @@ export class FighterJet {
     }
 
     _findPriorityTarget(missiles) {
-        const canEngageMissile = new Set(['drone', 'cruise', 'loiter', 'maneuver']);
+        const canEngageMissile = new Set(['drone', 'loiter', 'cruise', 'maneuver', 'mirv']); // all except hypersonic, ballistic, antiship
         let best = null, bestScore = -Infinity;
         for (const m of missiles) {
             if (!m.isActive()) continue;

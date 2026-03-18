@@ -112,6 +112,36 @@ export const MISSILE_TYPES = {
         threatLevel: 'CRITICAL',
         alertMsg: 'MIRV warhead detected — multiple sub-missiles incoming!',
     },
+    cluster: {
+        name: 'Cluster Ballistic Missile',
+        shortName: 'CBM',
+        speed: 0.070,
+        damage: 5,        // minimal direct damage — threat is in the submunitions
+        reward: 350,      // high reward for stopping it before split
+        color: '#ff6600',
+        glowColor: 'rgba(255,100,0,0.65)',
+        arcHeight: 0.40,
+        radius: 8,
+        trailLength: 12,
+        threatLevel: 'CRITICAL',
+        alertMsg: 'Cluster Ballistic Missile inbound — will disperse submunitions over Qatar!',
+        isCluster: true,
+        splitProgress: 0.60,   // splits when descending into Qatari airspace
+    },
+    submunition: {
+        name: 'Cluster Submunition',
+        shortName: 'SUBMUN',
+        speed: 0.130,
+        damage: 10,
+        reward: 50,
+        color: '#ff8833',
+        glowColor: 'rgba(255,136,50,0.55)',
+        arcHeight: 0.14,
+        radius: 3,
+        trailLength: 6,
+        threatLevel: 'HIGH',
+        alertMsg: 'Submunitions dispersed — multiple warheads inbound!',
+    },
 };
 
 let _missileIdCounter = 0;
@@ -144,9 +174,10 @@ export class Missile {
         this.active = true;
         this.reachedTarget = false;
         this.targeted = false;
-        this.hasSplit = false; // for MIRV
+        this.hasSplit = false; // for MIRV / cluster
         this._jamMult = 1.0;
         this._jammed  = false;
+        this._splitCallback = null;
 
         this.trail = [];
         this.maxTrail = cfg.trailLength;
@@ -202,6 +233,14 @@ export class Missile {
         const pos = this.getPositionAt(this.progress);
         this.x = pos.x;
         this.y = pos.y;
+
+        // Cluster missile split — triggers when descending into Qatari airspace
+        if (this.config.isCluster && !this.hasSplit && this.progress >= this.config.splitProgress) {
+            this.hasSplit = true;
+            this.active = false; // delivery vehicle spent on dispersion
+            this._splitCallback?.(this.x, this.y);
+            return;
+        }
 
         // Maneuvering
         if (this.config.maneuverable) this._updateManeuver(deltaTime);
@@ -284,6 +323,8 @@ export class Missile {
         }
     }
 
+    onSplit(cb) { this._splitCallback = cb; }
+
     getPerpendicular() {
         const dx = this.targetX - this.startX;
         const dy = this.targetY - this.startY;
@@ -347,6 +388,23 @@ export class Missile {
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.restore();
+        }
+
+        // Cluster missile: pulsing split-warning ring as it approaches dispersion
+        if (this.config.isCluster && !this.hasSplit) {
+            const splitProx = Math.max(0, (this.progress - 0.40) / (this.config.splitProgress - 0.40));
+            if (splitProx > 0) {
+                const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 120);
+                ctx.save();
+                ctx.strokeStyle = `rgba(255,160,0,${0.35 + 0.55 * splitProx * pulse})`;
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.arc(screenPos.x, screenPos.y, this.radius + 10 + pulse * 4, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
         }
 
         // Type label

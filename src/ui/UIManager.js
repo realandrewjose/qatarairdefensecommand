@@ -16,6 +16,49 @@ const PSA_VIDEOS = [
     'WorkplaceProcedure.mp4',
 ].map(f => `assets/videos/PSAs/${encodeURIComponent(f)}`);
 
+// ── Rank system ─────────────────────────────────────────────────────────────
+const RANKS = [
+    { id: 'jundi',       nameAr: 'جندي',     nameEn: 'Jundi',         cat: 'ENLISTED', file: null,                repPoints: 0        },
+    { id: 'wakil_awwal', nameAr: 'وكيل اول',  nameEn: 'Wakil Awwal',  cat: 'ENLISTED', file: 'Wakil awwal.png',   repPoints: 500      },
+    { id: 'wakil_thani', nameAr: 'وكيل ثاني', nameEn: 'Wakil Thani',  cat: 'ENLISTED', file: 'Wakil thani.png',   repPoints: 1500     },
+    { id: 'raqib',       nameAr: 'رقيب',       nameEn: 'Raqib',        cat: 'ENLISTED', file: 'Raqib.png',         repPoints: 4000     },
+    { id: 'nayib',       nameAr: 'نائب',       nameEn: 'Nayib',        cat: 'ENLISTED', file: 'Nayib.png',         repPoints: 9000     },
+    { id: 'earif',       nameAr: 'عريف',       nameEn: 'Earif',        cat: 'ENLISTED', file: 'Earif.png',         repPoints: 18000    },
+    { id: 'wakil_earif', nameAr: 'وكيل عريف',  nameEn: 'Wakil Earif',  cat: 'ENLISTED', file: 'Wakil Earif.png',   repPoints: 35000    },
+    { id: 'mulazim',     nameAr: 'ملازم',      nameEn: 'Mulazim',       cat: 'OFFICER',  file: 'Mulazim.png',      repPoints: 60000    },
+    { id: 'mulazim_aw',  nameAr: 'ملازم أول',  nameEn: 'Mulazim Awwal', cat: 'OFFICER',  file: 'Mulazim awwal.png',repPoints: 95000    },
+    { id: 'naqib',       nameAr: 'نقيب',       nameEn: 'Naqib',         cat: 'OFFICER',  file: 'Naqib.png',        repPoints: 140000   },
+    { id: 'raid',        nameAr: 'رائد',       nameEn: "Ra'id",         cat: 'OFFICER',  file: "Ra'id.png",        repPoints: 200000   },
+    { id: 'muqaddam',    nameAr: 'مقدم',       nameEn: 'Muqaddam',      cat: 'OFFICER',  file: 'Muqaddam.png',     repPoints: 280000   },
+    { id: 'aqid',        nameAr: 'عقيد',       nameEn: 'Aqid',          cat: 'OFFICER',  file: 'Aqid.png',         repPoints: 380000   },
+    { id: 'amid',        nameAr: 'عميد',       nameEn: 'Amid',          cat: 'OFFICER',  file: 'Amid.png',         repPoints: 500000   },
+    { id: 'liwa',        nameAr: 'لواء',       nameEn: 'Liwa',          cat: 'OFFICER',  file: 'Liwa.png',         repPoints: 650000   },
+    { id: 'fariq',       nameAr: 'فريق',       nameEn: 'Fariq',         cat: 'OFFICER',  file: 'Fariq.png',        repPoints: 850000   },
+    { id: 'fariq_awwal', nameAr: 'فريق اول',   nameEn: 'Fariq Awwal',   cat: 'OFFICER',  file: 'Fariq awwal.png',  repPoints: 1100000  },
+];
+
+// Multi-pathway RepPoints formula — rank is based on experience, NOT score
+function _computeRepPoints(totalKills, playtimeSec, gamesPlayed, bestStreak, penalty) {
+    const base = totalKills * 8
+               + Math.floor(playtimeSec / 60) * 50
+               + gamesPlayed * 30
+               + bestStreak * 20;
+    let mult = 1.0;
+    if (bestStreak >= 5)    mult += 0.10; // Combat specialist pathway
+    if (bestStreak >= 10)   mult += 0.12; // Elite combat pathway
+    if (gamesPlayed >= 10)  mult += 0.08; // Leadership pathway
+    if (gamesPlayed >= 25)  mult += 0.10; // Veteran commander pathway
+    if (totalKills >= 200)  mult += 0.08; // Veteran kills pathway
+    if (totalKills >= 500)  mult += 0.10; // Elite veteran pathway
+    return Math.max(0, Math.round(base * mult) - (penalty || 0));
+}
+
+function _getRank(repPoints) {
+    let rank = RANKS[0];
+    for (const r of RANKS) { if (repPoints >= r.repPoints) rank = r; }
+    return rank;
+}
+
 function _shuffleArr(arr) {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -36,6 +79,8 @@ const THREAT_COLORS = {
     mirv:          '#ff0044',
     bomber:        '#ffaa22',
     enemy_fighter: '#ff4444',
+    cluster:       '#ff6600',
+    submunition:   '#ff8833',
 };
 
 const THREAT_ICONS = {
@@ -51,6 +96,8 @@ const THREAT_ICONS = {
     enemy_fighter: '⚠',
     civilian:      '✈',
     ghost:         '?',
+    cluster:       '✦',
+    submunition:   '◆',
 };
 
 const KILL_DISPLAY = {
@@ -63,7 +110,9 @@ const KILL_DISPLAY = {
     loiter:        { label: 'LOITER',     color: '#ffaa00' },
     mirv:          { label: 'MIRV',       color: '#ff44ff' },
     bomber:        { label: 'BOMBER',     color: '#ffaa22' },
-    enemy_fighter: { label: 'BOGEY',      color: '#ff4444' },
+    enemy_fighter: { label: 'ENEMY FIGHTER', color: '#ff4444' },
+    cluster:       { label: 'CLUSTER CBM',   color: '#ff6600' },
+    submunition:   { label: 'SUBMUNITION',   color: '#ff8833' },
 };
 
 // ── Cookie helpers for persistent high score ────────────────────────────────
@@ -86,11 +135,19 @@ export class UIManager {
         this._totalImpacts = 0;
         this._waveTimer    = null;
         this._highScore    = parseInt(_getCookie('qad_hs') || '0', 10);
+        this._cumScore     = parseInt(_getCookie('qad_cs') || '0', 10); // kept for score display only
+        this._gamesPlayed  = parseInt(_getCookie('qad_gp') || '0', 10);
+        this._totalKills   = parseInt(_getCookie('qad_tk') || '0', 10);
+        this._totalPlaytime= parseInt(_getCookie('qad_pt') || '0', 10); // seconds
+        this._bestStreak   = parseInt(_getCookie('qad_ks') || '0', 10);
+        this._repPenalty   = parseInt(_getCookie('qad_rkp') || '0', 10);
+        this._currentRank  = _getRank(_computeRepPoints(this._totalKills, this._totalPlaytime, this._gamesPlayed, this._bestStreak, this._repPenalty));
 
         // PSA cutscene state
-        this._psaPlaylist = _shuffleArr(PSA_VIDEOS);
-        this._psaIndex    = 0;
-        this._psaDone     = false;
+        this._psaPlaylist    = _shuffleArr(PSA_VIDEOS);
+        this._psaIndex       = 0;
+        this._psaDone        = false;
+        this._cutsceneEnabled = true;
 
         this._buildArsenal();
         this._buildThreatLegend();
@@ -118,10 +175,15 @@ export class UIManager {
             laserItem:        document.querySelector('.arsenal-item[data-type="laser"]'),
             arsenalItems:     [...document.querySelectorAll('.arsenal-item')],
             bestDisplay:      document.getElementById('bestDisplay'),
+            rankInsignia:     document.getElementById('rankInsignia'),
+            rankCat:          document.getElementById('rankCat'),
+            rankNameEn:       document.getElementById('rankNameEn'),
+            rankNameAr:       document.getElementById('rankNameAr'),
+            rankProgress:     document.getElementById('rankProgress'),
         };
 
         // Previous values — only write to DOM when value changes
-        this._prev = { money: null, wave: null, score: null, threats: null, healthPct: null, shieldActive: null, best: null };
+        this._prev = { money: null, wave: null, score: null, threats: null, healthPct: null, shieldActive: null, best: null, rank: null };
         // Init best display from cookie
         if (this._els.bestDisplay) this._els.bestDisplay.textContent = this._highScore.toLocaleString();
 
@@ -139,27 +201,85 @@ export class UIManager {
             onHornetUnlocked:  ()                      => this._unlockHornet(),
             onFrigateUnlocked: ()                      => this._unlockFrigate(),
             onCutscene:        (waveNum, doneCb)       => this._playCutscene(waveNum, doneCb),
+            onCivilianIncident: ()                     => this._onCivilianIncident(),
         });
 
         this._updateKillBoard();
         this._updateHitBoard();
         this._updateInterval = setInterval(() => this._updateHUD(), 100);
         this.log('Qatar Air Defense System — ONLINE. Click a missile blip to intercept.', 'success');
+        // Init rank display
+        this._applyRankDisplay(this._currentRank);
+    }
+
+    _applyRankDisplay(rank) {
+        const els = this._els;
+        if (!els) return;
+        if (els.rankInsignia) {
+            if (rank.file) {
+                els.rankInsignia.src = `assets/Rank/${rank.file}`;
+                els.rankInsignia.style.display = 'block';
+            } else {
+                els.rankInsignia.style.display = 'none';
+            }
+        }
+        if (els.rankCat)    els.rankCat.textContent    = rank.cat;
+        if (els.rankNameEn) els.rankNameEn.textContent  = rank.nameEn.toUpperCase();
+        if (els.rankNameAr) els.rankNameAr.textContent  = rank.nameAr;
+
+        // Next rank progress bar
+        const nextIdx = RANKS.indexOf(rank) + 1;
+        if (els.rankProgress) {
+            if (nextIdx < RANKS.length) {
+                const next = RANKS[nextIdx];
+                const effectiveRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._gamesPlayed, this._bestStreak, this._repPenalty);
+                const pct = Math.min(100, Math.round(((effectiveRp - rank.repPoints) / (next.repPoints - rank.repPoints)) * 100));
+                els.rankProgress.style.width = pct + '%';
+                els.rankProgress.title = `${pct}% to ${next.nameEn}`;
+            } else {
+                els.rankProgress.style.width = '100%';
+            }
+        }
     }
 
     _initTopBarButtons() {
+        const cutsceneToggle = document.getElementById('cutsceneToggleBtn');
+        if (cutsceneToggle) {
+            cutsceneToggle.addEventListener('click', () => {
+                this._cutsceneEnabled = !this._cutsceneEnabled;
+                cutsceneToggle.textContent = `🎬 PSA: ${this._cutsceneEnabled ? 'ON' : 'OFF'}`;
+                cutsceneToggle.style.opacity = this._cutsceneEnabled ? '1' : '0.5';
+                this.log(`◉ PSA cutscenes ${this._cutsceneEnabled ? 'enabled' : 'disabled'}.`, 'info');
+            });
+        }
+
         document.getElementById('clearDataBtn')?.addEventListener('click', () => {
-            if (!confirm('Clear all saved data (high score)?')) return;
+            if (!confirm(`Clear all saved data?\n\nThis will permanently reset:\n• High Score\n• Rank (${this._currentRank.nameEn}) — you will return to Jundi\n• Total Kills: ${this._totalKills}\n• Playtime: ${Math.floor(this._totalPlaytime/60)} min\n• Games Played: ${this._gamesPlayed}\n• Best Streak: ${this._bestStreak}\n\nThis cannot be undone.`)) return;
             // Expire the high score cookie
             document.cookie = 'qad_hs=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
             this._highScore = 0;
+            this._cumScore    = 0;
+            this._gamesPlayed = 0;
+            this._currentRank = RANKS[0];
+            document.cookie = 'qad_cs=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+            document.cookie = 'qad_gp=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+            document.cookie = 'qad_tk=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+            document.cookie = 'qad_pt=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+            document.cookie = 'qad_ks=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+            document.cookie = 'qad_rkp=0;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+            this._totalKills    = 0;
+            this._totalPlaytime = 0;
+            this._bestStreak    = 0;
+            this._repPenalty    = 0;
+            this._applyRankDisplay(RANKS[0]);
             if (this._els?.bestDisplay) this._els.bestDisplay.textContent = '0';
             this.log('◉ Saved data cleared.', 'info');
         });
     }
 
     _playCutscene(waveNum, doneCb) {
-        if (this._psaDone || this._psaIndex >= this._psaPlaylist.length) {
+        if (!this._cutsceneEnabled || this._psaDone || this._psaIndex >= this._psaPlaylist.length) {
+            if (!this._cutsceneEnabled) { doneCb(); return; }
             this._psaDone = true;
             doneCb();
             return;
@@ -398,12 +518,14 @@ export class UIManager {
 
         mkSep('Aircraft');
         mkRow('#ffaa22', '✈', 'Strategic Bomber',  '3–8hp · drops ordnance');
-        mkRow('#ff4444', '⚠', 'Enemy Fighter',     '2hp · dogfights QAF jets');
+        mkRow('#ff4444', '⚠', 'Enemy Fighter',     '2hp · dogfights jets, fires cruise missiles');
         mkRow('#7799cc', '✈', 'Civilian Airliner', 'DO NOT SHOOT — penalty');
         mkRow('#888844', '?', 'Radar Ghost (EW)',   'Decoy — wastes interceptors');
+        mkRow('#ff6600', '✦', 'Cluster Ballistic (CBM)', 'Splits into 10 submunitions over Qatar — intercept early!');
+        mkRow('#ff8833', '◆', 'Cluster Submunition',    'Released by CBM — fast plunging warheads');
 
         mkSep('Friendly Assets');
-        mkRow('#ffdd44', '✈', 'QAF Fighter (QAF-#)', 'Hunts fighters & missiles');
+        mkRow('#ffdd44', '✈', 'QAF Fighter (QAF-#)', 'Engages all but ballistic, hypersonic, anti-ship');
         mkRow('#ffaa22', '◈', 'Hornet UAV (UAV-##)', 'Kamikaze vs drones/loiters');
         mkRow('#44aaff', '⚓', 'Frigate (QN-#)',      'Anti-cruise/anti-ship; no hypersonic');
 
@@ -444,6 +566,12 @@ export class UIManager {
             const live = gs.getScore();
             if (live > this._highScore) { this._highScore = live; _setCookie('qad_hs', live); }
             els.bestDisplay.textContent = this._highScore.toLocaleString();
+        }
+
+        // --- Rank display ---
+        if (this._currentRank.id !== this._prev.rank) {
+            this._prev.rank = this._currentRank.id;
+            this._applyRankDisplay(this._currentRank);
         }
 
         // Live kills + hits counters
@@ -638,7 +766,7 @@ export class UIManager {
             const flareTag = f._flareActive ? '<span class="tracked-badge" style="color:#ffd700">✦ FLARE</span>' : '';
             rows.push(`<div class="threat-row">
                 <span style="color:#ff4444;font-size:11px">⚠</span>
-                <span class="threat-type" style="color:#ff4444">BOGEY</span>
+                <span class="threat-type" style="color:#ff4444">ENEMY FIGHTER</span>
                 <div class="threat-bar-bg"><div class="threat-bar-fill" style="width:${hpPct}%;background:#ff4444"></div></div>
                 <span class="threat-pct">${hpPct}%hp</span>
                 ${f.targeted ? '<span class="tracked-badge">⊙ TRACKED</span>' : ''}${flareTag}
@@ -753,6 +881,59 @@ export class UIManager {
             if (isNewBest) hsEl.style.color = '#fcd34d';
         }
 
+        // Update XP metrics for rank (independent of score)
+        this._gamesPlayed++;
+        this._cumScore += score; // still track for display purposes only
+        _setCookie('qad_gp', this._gamesPlayed);
+        _setCookie('qad_cs', this._cumScore);
+
+        // Accumulate kills, playtime, best streak
+        const gameKills    = gs.getInterceptionsCount();
+        const gamePlaytime = Math.round(this.game.getGameTime?.() || 0);
+        const gameStreak   = this.game.getPeakStreak?.() || 0;
+        this._totalKills    += gameKills;
+        this._totalPlaytime += gamePlaytime;
+        if (gameStreak > this._bestStreak) this._bestStreak = gameStreak;
+        _setCookie('qad_tk', this._totalKills);
+        _setCookie('qad_pt', this._totalPlaytime);
+        _setCookie('qad_ks', this._bestStreak);
+
+        const oldRank = this._currentRank;
+        const newRepPoints = _computeRepPoints(this._totalKills, this._totalPlaytime, this._gamesPlayed, this._bestStreak, this._repPenalty);
+        const newRank = _getRank(newRepPoints);
+        const rankedUp = RANKS.indexOf(newRank) > RANKS.indexOf(oldRank);
+        this._currentRank = newRank;
+        this._applyRankDisplay(newRank);
+
+        // Show rank-up in game over
+        const rankUpEl = document.getElementById('finalRankUp');
+        if (rankUpEl) {
+            if (rankedUp) {
+                rankUpEl.innerHTML = `<span style="color:#ffd700;font-size:1.1em">★ PROMOTION! ${oldRank.nameEn} → ${newRank.nameEn} (${newRank.nameAr})</span>`;
+                rankUpEl.style.display = 'block';
+            } else {
+                rankUpEl.style.display = 'none';
+            }
+        }
+        const finalRankEl = document.getElementById('finalRank');
+        if (finalRankEl) {
+            finalRankEl.innerHTML = `
+                ${newRank.file ? `<img src="assets/Rank/${newRank.file}" style="height:36px;vertical-align:middle;margin-right:8px">` : ''}
+                <span style="color:#ffd700">${newRank.nameEn}</span>
+                <span style="color:#94a3b8;font-size:0.85em;margin-left:6px">${newRank.nameAr}</span>
+                <span style="color:#64748b;font-size:0.75em;margin-left:8px">[${newRank.cat}]</span>
+            `;
+        }
+        const finalCumEl = document.getElementById('finalCumScore');
+        if (finalCumEl) finalCumEl.textContent = `RP: ${newRepPoints.toLocaleString()} (Kills:${this._totalKills} | ${Math.floor(this._totalPlaytime/60)}min | Streak:${this._bestStreak})`;
+        const finalGamesEl = document.getElementById('finalGamesPlayed');
+        if (finalGamesEl) finalGamesEl.textContent = this._gamesPlayed;
+
+        // Show promotion screen after a short delay if ranked up
+        if (rankedUp) {
+            setTimeout(() => this._showPromotionScreen(oldRank, newRank), 800);
+        }
+
         set('finalMoney', score.toLocaleString()); // score — no $ prefix
         set('finalInterceptions', gs.getInterceptionsCount());
         set('finalWaves', gs.getWaveCount());
@@ -783,6 +964,121 @@ export class UIManager {
         }
 
         document.getElementById('gameOverScreen')?.classList.remove('hidden');
+    }
+
+    _onCivilianIncident() {
+        // Pause game immediately
+        this.game.pause?.();
+
+        const currentIdx = RANKS.indexOf(this._currentRank);
+
+        // Jundi (0) or Wakil Awwal (1) — civilian hit = immediate game over
+        if (currentIdx <= 1) {
+            this._showMinisterScreen(this._currentRank, this._currentRank, () => {
+                // Force game over by draining all health
+                this.game.gameState.health = 0;
+                this.game.gameState.gameOver = true;
+                this.game.resume?.(); // let the loop detect game over and call _showGameOver
+            }, true /* isCourtMartial */);
+            return;
+        }
+
+        // Compute 2-rank demotion
+        const newIdx = Math.max(0, currentIdx - 2);
+        const targetRank = RANKS[newIdx];
+        const oldRank = this._currentRank;
+
+        // Apply penalty: set penalty so effective repPoints floors at targetRank
+        const currentRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._gamesPlayed, this._bestStreak, this._repPenalty);
+        const needed = currentRp - targetRank.repPoints;
+        if (needed > 0) this._repPenalty += needed;
+        _setCookie('qad_rkp', this._repPenalty);
+        this._currentRank = targetRank;
+        this._applyRankDisplay(targetRank);
+
+        this._showMinisterScreen(oldRank, targetRank, () => {
+            this.game.resume?.();
+        });
+    }
+
+    _showMinisterScreen(oldRank, newRank, doneCb, isCourtMartial = false) {
+        const overlay = document.getElementById('ministerOverlay');
+        if (!overlay) { doneCb(); return; }
+
+        // Dynamic text areas
+        const headlineEl = document.getElementById('ministerHeadline');
+        const bodyEl = document.getElementById('ministerBody');
+        const rankLabelEl = document.getElementById('ministerRankLabel');
+        const ackBtn = document.getElementById('ministerAckBtn');
+
+        if (isCourtMartial) {
+            if (headlineEl) headlineEl.textContent = '⚠ COURT MARTIAL — DISHONORABLE DISCHARGE';
+            if (bodyEl) bodyEl.innerHTML = `You hold the lowest rank in the Qatar Armed Forces and you have destroyed a civilian aircraft.<br><br>
+                There is no further demotion possible. Your service record is permanently dishonored.
+                <br><br><strong style="color:#dc2626">MISSION FAILED — GAME OVER</strong>`;
+            if (rankLabelEl) rankLabelEl.textContent = 'DISHONORABLE DISCHARGE';
+            if (ackBtn) ackBtn.textContent = 'ACCEPT CONSEQUENCES';
+        } else {
+            if (headlineEl) headlineEl.textContent = '⚠ OFFICIAL COMMUNIQUÉ';
+            if (bodyEl) bodyEl.innerHTML = `The State of Qatar takes the accidental shootdown of civilian aircraft with the utmost
+                seriousness. Your actions have cost the lives of innocent civilians and brought the
+                country significant international embarrassment.<br><br>
+                The Ministry of Defense has reviewed the incident and determined that disciplinary
+                action is warranted. Effective immediately, your rank has been reduced.`;
+            if (rankLabelEl) rankLabelEl.textContent = 'RANK REDUCTION — EFFECTIVE IMMEDIATELY';
+            if (ackBtn) ackBtn.textContent = 'I ACKNOWLEDGE MY FAILURE';
+        }
+
+        // Populate rank names
+        const oldEl = overlay.querySelector('#ministerOldRank');
+        const newEl = overlay.querySelector('#ministerNewRank');
+        if (oldEl) oldEl.innerHTML = `
+            ${oldRank.file ? `<img src="assets/Rank/${oldRank.file}" style="height:40px;vertical-align:middle;margin-right:8px;opacity:0.5">` : ''}
+            <span style="text-decoration:line-through;color:#ef4444">${oldRank.nameEn}</span>
+            <span style="color:#64748b;font-size:0.8em;margin-left:6px">${oldRank.nameAr}</span>`;
+        if (newEl) newEl.innerHTML = `
+            ${newRank.file ? `<img src="assets/Rank/${newRank.file}" style="height:40px;vertical-align:middle;margin-right:8px">` : ''}
+            <span style="color:#ffd700">${newRank.nameEn}</span>
+            <span style="color:#94a3b8;font-size:0.8em;margin-left:6px">${newRank.nameAr}</span>`;
+        overlay.style.display = 'flex';
+
+        const ackBtn = document.getElementById('ministerAckBtn');
+        if (ackBtn) {
+            const newAck = ackBtn.cloneNode(true);
+            ackBtn.parentNode.replaceChild(newAck, ackBtn);
+            document.getElementById('ministerAckBtn').addEventListener('click', () => {
+                overlay.style.display = 'none';
+                doneCb();
+            }, { once: true });
+        }
+    }
+
+    _showPromotionScreen(oldRank, newRank) {
+        const overlay = document.getElementById('promotionOverlay');
+        if (!overlay) return;
+        const newInsEl = overlay.querySelector('#promoNewInsignia');
+        const newNameEl = overlay.querySelector('#promoNewName');
+        const newArEl = overlay.querySelector('#promoNewAr');
+        const newCatEl = overlay.querySelector('#promoNewCat');
+        const oldNameEl = overlay.querySelector('#promoOldName');
+        if (newInsEl) {
+            if (newRank.file) { newInsEl.src = `assets/Rank/${newRank.file}`; newInsEl.style.display = 'block'; }
+            else newInsEl.style.display = 'none';
+        }
+        if (newNameEl) newNameEl.textContent = newRank.nameEn.toUpperCase();
+        if (newArEl)   newArEl.textContent   = newRank.nameAr;
+        if (newCatEl)  newCatEl.textContent  = newRank.cat;
+        if (oldNameEl) oldNameEl.textContent = oldRank.nameEn;
+        overlay.style.display = 'flex';
+
+        const contBtn = document.getElementById('promoContinueBtn');
+        if (contBtn) {
+            const newBtn = contBtn.cloneNode(true);
+            contBtn.parentNode.replaceChild(newBtn, contBtn);
+            document.getElementById('promoContinueBtn').addEventListener('click', () => {
+                overlay.style.display = 'none';
+            }, { once: true });
+        }
     }
 
     log(msg, type = 'info') {

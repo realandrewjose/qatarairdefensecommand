@@ -3,7 +3,7 @@ export class EnemyFighter {
     constructor(id, waveScaling = 1.0) {
         this.id    = id;
         this.type  = 'enemy_fighter';
-        this.config = { name: 'Enemy Fighter', shortName: 'BOGEY' };
+        this.config = { name: 'Enemy Fighter', shortName: 'ENEMY FIGHTER' };
         this.color  = '#ff4444';
         this.active = true;
         this.targeted = false;
@@ -202,7 +202,7 @@ export class EnemyFighter {
         ctx.fillStyle = '#ff6666';
         ctx.font      = 'bold 7px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(this._flareActive ? '✦ BOGEY' : '⚠ BOGEY', sp.x, sp.y + 19);
+        ctx.fillText(this._flareActive ? '✦ ENEMY FIGHTER' : '⚠ ENEMY FIGHTER', sp.x, sp.y + 19);
 
         if (this.targeted) {
             ctx.save();

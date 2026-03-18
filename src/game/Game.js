@@ -23,8 +23,10 @@ const KILL_TYPE_NAMES = {
     'loiter':        'Loitering munition',
     'antiship':      'Anti-ship missile',
     'mirv':          'MIRV warhead',
-    'enemy_fighter': 'Bogey',
+    'enemy_fighter': 'Enemy Fighter',
     'bomber':        'Bomber',
+    'cluster':       'Cluster Ballistic Missile',
+    'submunition':   'Submunition',
 };
 
 const THREAT_ORIGINS = [
@@ -48,14 +50,14 @@ const QATAR_TARGETS = [
 
 // Type unlock table — types available from a given wave onward
 const TYPE_UNLOCKS = [
-    { fromWave:  1, types: ['ballistic', 'cruise'],                                                                        baseCount: [2, 3],  interval: 30 },
-    { fromWave:  5, types: ['ballistic', 'cruise', 'drone'],                                                               baseCount: [3, 5],  interval: 27 },
-    { fromWave: 10, types: ['ballistic', 'cruise', 'drone', 'antiship'],                                                   baseCount: [3, 5],  interval: 24 },
-    { fromWave: 15, types: ['ballistic', 'cruise', 'drone', 'antiship', 'hypersonic'],                                     baseCount: [4, 6],  interval: 22 },
-    { fromWave: 22, types: ['ballistic', 'cruise', 'drone', 'antiship', 'hypersonic', 'maneuver'],                         baseCount: [4, 6],  interval: 20 },
-    { fromWave: 32, types: ['ballistic', 'cruise', 'drone', 'antiship', 'hypersonic', 'maneuver', 'loiter'],               baseCount: [4, 7],  interval: 18 },
-    { fromWave: 55, types: ['ballistic', 'cruise', 'drone', 'antiship', 'hypersonic', 'maneuver', 'loiter', 'mirv'],       baseCount: [5, 8],  interval: 16 },
-    { fromWave: 100,types: ['ballistic', 'cruise', 'drone', 'antiship', 'hypersonic', 'maneuver', 'loiter', 'mirv'],       baseCount: [6, 10], interval: 14 },
+    { fromWave:  1, types: ['ballistic', 'cruise'],                                                                                          baseCount: [2, 3],  interval: 30 },
+    { fromWave:  5, types: ['ballistic', 'cruise', 'drone'],                                                                                 baseCount: [3, 5],  interval: 27 },
+    { fromWave: 10, types: ['ballistic', 'cruise', 'drone', 'antiship', 'cluster'],                                                          baseCount: [3, 5],  interval: 24 },
+    { fromWave: 15, types: ['ballistic', 'cruise', 'drone', 'antiship', 'hypersonic', 'cluster'],                                            baseCount: [4, 6],  interval: 22 },
+    { fromWave: 22, types: ['ballistic', 'cruise', 'drone', 'antiship', 'hypersonic', 'maneuver', 'cluster'],                                baseCount: [4, 6],  interval: 20 },
+    { fromWave: 32, types: ['ballistic', 'cruise', 'drone', 'antiship', 'hypersonic', 'maneuver', 'loiter', 'cluster'],                      baseCount: [4, 7],  interval: 18 },
+    { fromWave: 55, types: ['ballistic', 'cruise', 'drone', 'antiship', 'hypersonic', 'maneuver', 'loiter', 'mirv', 'cluster'],              baseCount: [5, 8],  interval: 16 },
+    { fromWave: 100,types: ['ballistic', 'cruise', 'drone', 'antiship', 'hypersonic', 'maneuver', 'loiter', 'mirv', 'cluster'],              baseCount: [6, 10], interval: 14 },
 ];
 
 // Heartbeat difficulty state machine
@@ -109,7 +111,8 @@ export class Game {
         this.onBorderCross     = null;
         this.onLog             = null;
         this.onHornetUnlocked  = null;
-        this.onCutscene        = null;   // (waveNum, doneCb) — called before every 5th wave
+        this.onCutscene         = null;   // (waveNum, doneCb) — called before every 5th wave
+        this.onCivilianIncident = null;
 
         this._waitingForCutscene = false;
 
@@ -166,6 +169,7 @@ export class Game {
 
         // Kill streak + floating text
         this._killStreak    = 0;
+        this._peakStreak    = 0;
         this._lastKillTime  = -10;
         this._gameTime      = 0;
         this._floatTexts    = [];
@@ -518,6 +522,7 @@ export class Game {
                 this._killStreak = 1;
             }
             this._lastKillTime = this._gameTime;
+                    if (this._killStreak > this._peakStreak) this._peakStreak = this._killStreak;
 
             let streakBonus = 0;
             if (this._killStreak >= 8) {
@@ -658,13 +663,10 @@ export class Game {
             const bonus = perfectWave ? Math.round(baseBonus * 1.5) : baseBonus;
             this.gameState.addMoney(bonus);
             this.gameState.addScore(bonus);
-            const label = perfectWave ? `◈ PERFECT DEFENSE! +$${bonus}` : `Wave cleared! +$${bonus}`;
+            const label = `Wave cleared! +$${bonus}`;
             this.onLog?.(label, 'success');
             if (perfectWave) {
                 this._consecutivePerfect++;
-                this.sound?.speak('Perfect defense. No targets penetrated our airspace.');
-                this._unlock('perfect_guard');
-                if (this._consecutivePerfect >= 3) this._unlock('untouchable');
             } else {
                 this._consecutivePerfect = 0;
             }
@@ -688,7 +690,21 @@ export class Game {
             if (type === 'ENTRY') {
                 // Air raid siren — only plays if not already sounding
                 this.sound?.playAirRaidSiren();
-                const _alertName = missile.config?.name || (missile.type === 'enemy_fighter' ? 'Enemy Fighter' : missile.type?.replace(/_/g, ' ') || 'threat');
+                const _ALERT_NAMES = {
+                    ballistic:     'Ballistic Missile',
+                    cruise:        'Cruise Missile',
+                    hypersonic:    'Hypersonic Glide Vehicle',
+                    drone:         'Drone',
+                    loiter:        'Loitering Munition',
+                    antiship:      'Anti-Ship Missile',
+                    mirv:          'MIRV Warhead',
+                    maneuver:      'Maneuvering Missile',
+                    bomber:        'Strategic Bomber',
+                    enemy_fighter: 'Enemy Fighter',
+                    cluster:       'Cluster Ballistic Missile',
+                    submunition:   'Cluster Submunition',
+                };
+                const _alertName = _ALERT_NAMES[missile.type] || missile.config?.name || 'threat';
                 this.sound?.speak(`Border alert — ${_alertName} approaching Qatar airspace.`, true);
 
                 // Allied support / Shield: auto-destroy ADIZ crossers
@@ -1254,6 +1270,10 @@ export class Game {
             } else if (t === 'mirv') {
                 const base = Math.min(0.20, Math.max(0, waveNum - 55) / 225);
                 w = Math.max(0.1, base * 10);
+            } else if (t === 'cluster') {
+                // Cluster: starts rare at wave 10, ramps to ~15% weight by wave 40
+                const base = Math.min(0.15, Math.max(0, waveNum - 10) / 200);
+                w = Math.max(0.5, base * 10);
             } else if (this._diffState === 'PEAK' && this._peakProfile?.biasTypes) {
                 // Bias toward this peak's preferred types (4× weight); suppress others
                 w = this._peakProfile.biasTypes.includes(t) ? 40 : 3;
@@ -1302,7 +1322,8 @@ export class Game {
             this.onLog?.('⚠ ENEMY FIGHTER ESCORT DETECTED!', 'error');
         }
 
-        if (waveTypes.includes('mirv'))       this.sound?.speak('MIRV warhead detected.', true);
+        if (waveTypes.includes('cluster'))    this.sound?.speak('Cluster ballistic missile inbound. Intercept before dispersion.', true);
+        else if (waveTypes.includes('mirv'))       this.sound?.speak('MIRV warhead detected.', true);
         else if (waveTypes.includes('hypersonic')) this.sound?.speak('Hypersonic threat detected.', true);
         else if (waveTypes.includes('maneuver'))   this.sound?.speak('Maneuvering warhead inbound.', true);
         else if (waveTypes.includes('loiter'))     this.sound?.speak('Loitering munitions detected.', true);
@@ -1354,6 +1375,20 @@ export class Game {
         const waveScaling = (1.0 + Math.min((this.gameState.getWaveCount() - 1) * 0.04, 1.5))
                           * (DIFFICULTY_PRESETS[this._ddaAction]?.speedMult ?? 1.0);
         const missile = new Missile(startX, startY, targetX, targetY, type, targetName, waveScaling);
+        // Cluster missile: wire split callback — releases 10 submunitions when over Qatar
+        if (type === 'cluster') {
+            missile.onSplit((sx, sy) => {
+                setTimeout(() => {
+                    if (this.gameState.isGameOver()) return;
+                    for (let i = 0; i < 10; i++) this.spawnMissileFrom(sx, sy, 'submunition');
+                    this.entityManager.addExplosion(new Explosion(sx, sy, 'intercept', '#ff8800'));
+                    this.sound?.playMissileAlert();
+                    this.onLog?.('☢ CBM DISPERSING — 10 submunitions released over Qatar!', 'error');
+                    this.sound?.speak('Cluster missile dispersing. Ten submunitions inbound.', true);
+                }, 0);
+            });
+        }
+
         this.entityManager.addMissile(missile);
         this.waveSpawned++;
 
@@ -1386,7 +1421,7 @@ export class Game {
             // Fighter fires a cruise or ballistic missile at target
             if (this.gameState.isGameOver()) return;
             const waveS = 1.0 + Math.min((this.gameState.getWaveCount() - 1) * 0.04, 1.5);
-            const fireType = Math.random() < 0.5 ? 'cruise' : 'ballistic';
+            const fireType = 'cruise'; // enemy fighters launch cruise missiles only
             const missile = new Missile(fx, fy, tx, ty, fireType, 'Qatar', waveS);
             this.entityManager.addMissile(missile);
             this.waveTotal++;
@@ -1396,7 +1431,7 @@ export class Game {
             this.onLog?.(`⚠ Enemy fighter fired ${fireType} missile!`, 'error');
         });
         this.entityManager.addEnemyFighter(fighter);
-        this.onLog?.('⚠ BOGEY INBOUND — enemy fighter approaching!', 'error');
+        this.onLog?.('⚠ ENEMY FIGHTER INBOUND — approaching!', 'error');
         this.sound?.speak('Enemy fighter detected.');
     }
 
@@ -1405,13 +1440,12 @@ export class Game {
         const waveScaling = 1.0 + Math.min((this.gameState.getWaveCount() - 1) * 0.04, 1.5);
         const bomber = new Bomber(++this._bomberIdCounter, waveScaling);
         bomber.onDrop((x, y) => {
-            const dropTypes = ['ballistic', 'cruise', 'drone'];
-            const n = 2 + Math.floor(Math.random() * 2);
-            for (let i = 0; i < n; i++) {
-                this.spawnMissileFrom(x, y, dropTypes[Math.floor(Math.random() * dropTypes.length)]);
-            }
+            // 7 cruise missiles
+            for (let i = 0; i < 7; i++) this.spawnMissileFrom(x, y, 'cruise');
+            // 3 ballistic missiles
+            for (let i = 0; i < 3; i++) this.spawnMissileFrom(x, y, 'ballistic');
             this.sound?.playMissileAlert();
-            this.onLog?.('⊛ Bomber releasing payload!', 'error');
+            this.onLog?.('⊛ Bomber releasing payload — 7 cruise + 3 ballistic!', 'error');
         });
         bomber.onDestroy(() => {
             this.gameState.addMoney(bomber.reward);
@@ -1699,6 +1733,8 @@ export class Game {
             || this.radar.getBatteries()[0];
     }
 
+    getGameTime()   { return this._gameTime   || 0; }
+    getPeakStreak() { return this._peakStreak || 0; }
     isLaserReady()      { return this.laserCooldown <= 0; }
     triggerLaserCooldown() { this.laserCooldown = this.laserCooldownMax; }
     triggerShake(dur)   { this.shakeDuration = Math.max(this.shakeDuration, dur); }
@@ -1715,7 +1751,7 @@ export class Game {
     getEntityManager()  { return this.entityManager; }
     getRadar()          { return this.radar; }
 
-    setCallbacks({ onMissileSpawned, onInterception, onImpact, onWave, onGameOver, onLog, onHornetUnlocked, onFrigateUnlocked, onCutscene }) {
+    setCallbacks({ onMissileSpawned, onInterception, onImpact, onWave, onGameOver, onLog, onHornetUnlocked, onFrigateUnlocked, onCutscene, onCivilianIncident }) {
         this.onMissileSpawned  = onMissileSpawned;
         this.onInterception    = onInterception;
         this.onImpact          = onImpact;
@@ -1725,6 +1761,7 @@ export class Game {
         this.onHornetUnlocked  = onHornetUnlocked;
         this.onFrigateUnlocked = onFrigateUnlocked;
         this.onCutscene        = onCutscene;
+        this.onCivilianIncident = onCivilianIncident || null;
     }
 
     isJetDispatchReady() {
@@ -1813,6 +1850,7 @@ export class Game {
         this.onImpact?.(25, 'civilian', 'Civilian Airliner');
         this.onLog?.('⚠ CATASTROPHIC: Civilian airliner destroyed! Diplomatic incident! -25HP -$2000', 'error');
         this.sound?.speak('Friendly fire incident. Civilian aircraft destroyed.', true);
+        this.onCivilianIncident?.();
     }
 
     _updateRadarBatteries() {
@@ -1847,8 +1885,6 @@ export class Game {
             first_blood:   { title: '🎯 FIRST INTERCEPT',    sub: 'First threat destroyed' },
             sharpshooter:  { title: '⚡ SHARPSHOOTER',       sub: '5-kill streak' },
             iron_dome:     { title: '◈ IRON DOME',           sub: '10-kill streak' },
-            perfect_guard: { title: '★ PERFECT DEFENSE',     sub: 'Wave with zero hits' },
-            untouchable:   { title: '◉ UNTOUCHABLE',         sub: '3 consecutive perfect waves' },
             survivor:      { title: '◎ SURVIVOR',            sub: 'Reached wave 5' },
             veteran:       { title: '⊛ VETERAN COMMANDER',   sub: 'Reached wave 10' },
             elite:         { title: '⊛ ELITE GUARDIAN',      sub: 'Reached wave 20' },
