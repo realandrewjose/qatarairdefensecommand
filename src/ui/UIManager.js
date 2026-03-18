@@ -175,11 +175,6 @@ export class UIManager {
             laserItem:        document.querySelector('.arsenal-item[data-type="laser"]'),
             arsenalItems:     [...document.querySelectorAll('.arsenal-item')],
             bestDisplay:      document.getElementById('bestDisplay'),
-            rankInsignia:     document.getElementById('rankInsignia'),
-            rankCat:          document.getElementById('rankCat'),
-            rankNameEn:       document.getElementById('rankNameEn'),
-            rankNameAr:       document.getElementById('rankNameAr'),
-            rankProgress:     document.getElementById('rankProgress'),
         };
 
         // Previous values — only write to DOM when value changes
@@ -208,36 +203,46 @@ export class UIManager {
         this._updateHitBoard();
         this._updateInterval = setInterval(() => this._updateHUD(), 100);
         this.log('Qatar Air Defense System — ONLINE. Click a missile blip to intercept.', 'success');
-        // Init rank display
+        // Show rank panel and init display
+        const rankPanel = document.getElementById('rankPanel');
+        if (rankPanel) rankPanel.style.display = 'flex';
         this._applyRankDisplay(this._currentRank);
     }
 
     _applyRankDisplay(rank) {
-        const els = this._els;
-        if (!els) return;
-        if (els.rankInsignia) {
-            if (rank.file) {
-                els.rankInsignia.src = `assets/Rank/${rank.file}`;
-                els.rankInsignia.style.display = 'block';
-            } else {
-                els.rankInsignia.style.display = 'none';
-            }
-        }
-        if (els.rankCat)    els.rankCat.textContent    = rank.cat;
-        if (els.rankNameEn) els.rankNameEn.textContent  = rank.nameEn.toUpperCase();
-        if (els.rankNameAr) els.rankNameAr.textContent  = rank.nameAr;
+        const insigniaEl  = document.getElementById('rankInsignia');
+        const jundiFallback = document.getElementById('rankJundiFallback');
+        const catEl       = document.getElementById('rankCat');
+        const nameEnEl    = document.getElementById('rankNameEn');
+        const nameArEl    = document.getElementById('rankNameAr');
+        const progressEl  = document.getElementById('rankProgress');
+        const progressLbl = document.getElementById('rankProgressLabel');
 
-        // Next rank progress bar
+        // Insignia: real image or Jundi SVG chevron fallback
+        if (rank.file) {
+            if (insigniaEl)  { insigniaEl.src = `assets/Rank/${rank.file}`; insigniaEl.style.display = 'block'; }
+            if (jundiFallback) jundiFallback.style.display = 'none';
+        } else {
+            if (insigniaEl)  insigniaEl.style.display = 'none';
+            if (jundiFallback) jundiFallback.style.display = 'block';
+        }
+
+        if (catEl)    catEl.textContent    = rank.cat;
+        if (nameEnEl) nameEnEl.textContent = rank.nameEn.toUpperCase();
+        if (nameArEl) nameArEl.textContent = rank.nameAr;
+
+        // Progress bar toward next rank
         const nextIdx = RANKS.indexOf(rank) + 1;
-        if (els.rankProgress) {
+        if (progressEl) {
             if (nextIdx < RANKS.length) {
                 const next = RANKS[nextIdx];
                 const effectiveRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._gamesPlayed, this._bestStreak, this._repPenalty);
                 const pct = Math.min(100, Math.round(((effectiveRp - rank.repPoints) / (next.repPoints - rank.repPoints)) * 100));
-                els.rankProgress.style.width = pct + '%';
-                els.rankProgress.title = `${pct}% to ${next.nameEn}`;
+                progressEl.style.width = pct + '%';
+                if (progressLbl) progressLbl.textContent = `${pct}% → ${next.nameEn}`;
             } else {
-                els.rankProgress.style.width = '100%';
+                progressEl.style.width = '100%';
+                if (progressLbl) progressLbl.textContent = 'MAX RANK';
             }
         }
     }
@@ -252,6 +257,15 @@ export class UIManager {
                 this.log(`◉ PSA cutscenes ${this._cutsceneEnabled ? 'enabled' : 'disabled'}.`, 'info');
             });
         }
+
+        // Rank info button — toggle progress popup
+        document.getElementById('rankInfoBtn')?.addEventListener('click', () => {
+            const popup = document.getElementById('rankInfoPopup');
+            if (!popup) return;
+            const visible = popup.style.display !== 'none';
+            popup.style.display = visible ? 'none' : 'block';
+            this._applyRankDisplay(this._currentRank); // refresh progress
+        });
 
         document.getElementById('clearDataBtn')?.addEventListener('click', () => {
             if (!confirm(`Clear all saved data?\n\nThis will permanently reset:\n• High Score\n• Rank (${this._currentRank.nameEn}) — you will return to Jundi\n• Total Kills: ${this._totalKills}\n• Playtime: ${Math.floor(this._totalPlaytime/60)} min\n• Games Played: ${this._gamesPlayed}\n• Best Streak: ${this._bestStreak}\n\nThis cannot be undone.`)) return;
@@ -972,13 +986,22 @@ export class UIManager {
 
         const currentIdx = RANKS.indexOf(this._currentRank);
 
-        // Jundi (0) or Wakil Awwal (1) — civilian hit = immediate game over
+        // Jundi (0) or Wakil Awwal (1) — civilian hit = court martial → restart to start screen
         if (currentIdx <= 1) {
             this._showMinisterScreen(this._currentRank, this._currentRank, () => {
-                // Force game over by draining all health
+                // Hide minister overlay then return to start screen (full reload)
+                document.getElementById('ministerOverlay').style.display = 'none';
+                document.getElementById('rankPanel')?.style && (document.getElementById('rankPanel').style.display = 'none');
+                const startScreen = document.getElementById('startScreen');
+                if (startScreen) {
+                    startScreen.classList.remove('hidden', 'fade-out');
+                    startScreen.style.display = '';
+                    startScreen.style.opacity = '1';
+                }
+                // Stop the game cleanly
                 this.game.gameState.health = 0;
                 this.game.gameState.gameOver = true;
-                this.game.resume?.(); // let the loop detect game over and call _showGameOver
+                clearInterval(this._updateInterval);
             }, true /* isCourtMartial */);
             return;
         }

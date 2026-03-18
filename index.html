@@ -170,20 +170,6 @@
                     <span class="stat-lbl">BEST</span>
                     <span class="stat-val" style="color:#fcd34d" id="bestDisplay">0</span>
                 </div>
-                <div class="stat-chip" style="flex-direction:row;align-items:center;gap:7px;padding:4px 10px">
-                    <img id="rankInsignia" src="" alt="" style="height:28px;width:auto;display:none;object-fit:contain">
-                    <div style="display:flex;flex-direction:column;gap:1px">
-                        <span class="stat-lbl" id="rankCat" style="font-size:0.55em;letter-spacing:1.5px">ENLISTED</span>
-                        <span id="rankNameEn" style="color:#ffd700;font-family:monospace;font-size:0.75em;font-weight:800;letter-spacing:1px">JUNDI</span>
-                        <span id="rankNameAr" style="color:#94a3b8;font-family:monospace;font-size:0.65em;direction:rtl">جندي</span>
-                    </div>
-                </div>
-                <div class="stat-chip" style="flex-direction:column;gap:2px;min-width:60px">
-                    <span class="stat-lbl">TO NEXT RANK</span>
-                    <div style="background:rgba(255,255,255,0.08);border-radius:2px;height:4px;overflow:hidden;width:100%">
-                        <div id="rankProgress" style="height:100%;width:0%;background:linear-gradient(90deg,#fbbf24,#ffd700);transition:width 0.4s ease"></div>
-                    </div>
-                </div>
                 <div class="stat-chip">
                     <span class="stat-lbl">KILLS</span>
                     <span class="stat-val green" id="interceptionsDisplay">0</span>
@@ -560,5 +546,62 @@
         if (e.persisted) location.reload(true);
     });
 </script>
+
+<!-- ── Rank Panel (top-right, always visible during game) ── -->
+<div id="rankPanel" style="display:none;position:fixed;top:64px;right:14px;z-index:2500;
+     background:rgba(4,7,18,0.93);border:1px solid rgba(255,215,0,0.22);border-radius:12px;
+     padding:12px 16px 10px;display:none;flex-direction:column;align-items:center;gap:5px;
+     min-width:100px;backdrop-filter:blur(10px);
+     box-shadow:0 4px 24px rgba(0,0,0,0.6),0 0 0 1px rgba(255,215,0,0.08)">
+
+    <!-- Insignia -->
+    <div style="width:72px;height:72px;display:flex;align-items:center;justify-content:center">
+        <img id="rankInsignia" src="" alt=""
+             style="max-width:72px;max-height:72px;object-fit:contain;display:none;
+                    filter:drop-shadow(0 0 6px rgba(255,215,0,0.35))">
+        <!-- Jundi fallback: single gold chevron (private insignia) -->
+        <svg id="rankJundiFallback" viewBox="0 0 72 72" width="72" height="72" style="display:none">
+            <polyline points="10,48 36,26 62,48"
+                      stroke="#ffd700" stroke-width="7" fill="none"
+                      stroke-linecap="round" stroke-linejoin="round"
+                      style="filter:drop-shadow(0 0 4px rgba(255,215,0,0.5))"/>
+        </svg>
+    </div>
+
+    <!-- Category badge -->
+    <span id="rankCat" style="color:#64748b;font-family:monospace;font-size:0.52em;
+          letter-spacing:3px;text-transform:uppercase">ENLISTED</span>
+
+    <!-- English name -->
+    <span id="rankNameEn" style="color:#ffd700;font-family:monospace;font-size:0.80em;
+          font-weight:900;letter-spacing:1.5px;text-align:center">JUNDI</span>
+
+    <!-- Arabic name -->
+    <span id="rankNameAr" style="color:#94a3b8;font-family:monospace;font-size:0.70em;
+          direction:rtl;text-align:center">جندي</span>
+
+    <!-- Info button -->
+    <button id="rankInfoBtn"
+            style="margin-top:4px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.25);
+                   color:#fbbf24;font-family:monospace;font-size:0.62em;font-weight:700;
+                   padding:3px 10px;border-radius:5px;cursor:pointer;letter-spacing:1px;
+                   transition:background 0.2s">
+        ⓘ RANK INFO
+    </button>
+
+    <!-- Progress popup (toggled by info button) -->
+    <div id="rankInfoPopup" style="display:none;width:100%;margin-top:4px;
+         border-top:1px solid rgba(255,215,0,0.12);padding-top:8px">
+        <div style="color:#64748b;font-family:monospace;font-size:0.52em;
+             letter-spacing:2px;margin-bottom:5px;text-align:center">TO NEXT RANK</div>
+        <div style="background:rgba(255,255,255,0.07);border-radius:3px;height:5px;overflow:hidden">
+            <div id="rankProgress" style="height:100%;width:0%;
+                 background:linear-gradient(90deg,#fbbf24,#ffd700);
+                 transition:width 0.4s ease"></div>
+        </div>
+        <div id="rankProgressLabel" style="color:#94a3b8;font-family:monospace;font-size:0.52em;
+             margin-top:4px;text-align:right"></div>
+    </div>
+</div>
 </body>
 </html>
