@@ -237,6 +237,10 @@ export class Game {
         this._ddaWaveIntercepts = 0;
         this._ddaWaveTotal      = 0;
         this._ddaWaveMisses     = 0;
+
+        // ── Meta-difficulty: career-based persistent scaling ─────────────────
+        // Set once before game.start() via setMetaDifficulty(); max +30%
+        this._metaMult = 1.0;
     }
 
     start() {
@@ -1158,8 +1162,8 @@ export class Game {
         const cfg = [...TYPE_UNLOCKS].reverse().find(c => waveNum >= c.fromWave) || TYPE_UNLOCKS[0];
 
         // ── Count calculation ──────────────────────────────────────────────
-        // Baseline grows ~0.8% per wave (very slow); hard-capped at 40
-        const baselineGrowth = 1.0 + Math.min(waveNum * 0.008, 0.9);
+        // Baseline grows ~0.8% per wave (very slow); veteran meta-mult seeds it higher; hard-capped at 40
+        const baselineGrowth = (1.0 + Math.min(waveNum * 0.008, 0.9)) * this._metaMult;
         const stateParams    = DIFF_STATE_PARAMS[this._diffState];
         // Safe fallback to FLOW preset if ddaAction is somehow out of range
         const ddaPreset      = DIFFICULTY_PRESETS[this._ddaAction] ?? DIFFICULTY_PRESETS[2];
@@ -1750,6 +1754,19 @@ export class Game {
     getGameState()      { return this.gameState; }
     getEntityManager()  { return this.entityManager; }
     getRadar()          { return this.radar; }
+
+    // Called by UIManager before game.start() with the player's career stats.
+    // Scales baseline wave intensity so veterans face a meaningful extra challenge.
+    // Caps at +30% so even the highest-ranked player isn't overwhelmed immediately.
+    setMetaDifficulty(rankIdx, totalKills, totalWaves) {
+        // rankIdx 0-16  → up to +15%
+        const rankBonus  = Math.min(rankIdx  / 16,   1.0) * 0.15;
+        // totalKills 0-3000 → up to +10%
+        const killBonus  = Math.min(totalKills / 3000, 1.0) * 0.10;
+        // totalWaves 0-300  → up to +8%
+        const waveBonus  = Math.min(totalWaves / 300,  1.0) * 0.08;
+        this._metaMult   = 1.0 + rankBonus + killBonus + waveBonus;
+    }
 
     setCallbacks({ onMissileSpawned, onInterception, onImpact, onWave, onGameOver, onLog, onHornetUnlocked, onFrigateUnlocked, onCutscene, onCivilianIncident }) {
         this.onMissileSpawned  = onMissileSpawned;

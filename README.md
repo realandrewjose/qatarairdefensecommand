@@ -151,9 +151,9 @@ After selecting a weapon, **click a blip** on the radar canvas to fire at it. Th
 | Key | Action |
 |-----|--------|
 | `1`–`5` | Select weapon |
-| `6` | Scramble F-15QA jets ($1500; available from Wave 1) |
-| `7` | Deploy frigate ($1200; unlocks at Wave 11) |
-| `8` | Launch QAF Hornets ($600; unlocks at Wave 8) |
+| `6` | Scramble a 20-jet F-15QA squadron from Al Udeid ($1500) |
+| `7` | Deploy a 7-ship frigate squadron from Al Khor ($1200; unlocks at Wave 11) |
+| `8` | Launch a 10-UAV Hornet swarm from Al Udeid ($600; unlocks at Wave 8) |
 | `9` | Activate EW Jamming ($300) |
 | `Space` | Pause / Resume |
 | `+` | Zoom in |
@@ -166,16 +166,45 @@ After selecting a weapon, **click a blip** on the radar canvas to fire at it. Th
 |--------|--------|
 | **PAUSE / RESUME** | Freeze/unfreeze game loop |
 | **ZOOM IN / OUT / RESET** | Adjust radar scale (0.5×–4.0×) |
-| **ALLIED SUPPORT** ($5000) | Activates 4-minute full-ADIZ auto-intercept; 5-minute cooldown; shows live countdown |
-| **SCRAMBLE JETS** | Dispatches F-15QA squadron for air-to-air |
-| **FRIGATES** | (unlocks Wave 11) Deploys naval frigate |
-| **HORNETS** | (unlocks Wave 8) Launches QAF Hornet UAVs |
+| **ALLIED SUPPORT** ($5000) | Activates 4-minute auto-intercept coverage inside Qatar; resets difficulty into a short recovery window |
+| **SCRAMBLE JETS** | Launches a 20-jet F-15QA squadron |
+| **FRIGATES** | (unlocks Wave 11) Deploys a 7-ship frigate squadron |
+| **HORNETS** | (unlocks Wave 8) Launches a 10-UAV Hornet swarm |
 | **EW JAM** | Deploys electronic warfare jamming |
 | **SFX / VOICE / MUSIC** | Toggle audio layers individually |
 | **SETTINGS** | Opens settings panel with volume sliders |
 | **⛶ FULLSCREEN** | Toggle browser/Electron fullscreen |
 | **🎬 PSA** | Enable/disable inter-wave PSA cutscenes |
 | **CLEAR DATA** | Wipe all saved cookies (rank, high score, stats) |
+
+### Top Bar and Overlay UI
+
+The current HUD includes several non-combat interface elements that are part of normal play:
+
+| UI Element | Purpose |
+|-----------|---------|
+| **Rank chip** | Shows current insignia, rank category, English rank name, Arabic rank name |
+| **ⓘ Rank button** | Opens the detailed rank info overlay with promotion progress and career totals |
+| **Legend modal** | Shows threat, friendly asset, and powerup reference data; pauses the game while open |
+| **Settings panel** | SFX toggle, voice toggle, SFX volume slider, music volume slider |
+| **Pause screen** | Resume or quit/restart the current run |
+| **Music player popup** | Shows current track and offers prev/play-next/stop controls |
+| **Game Over panel** | Summarizes waves survived, score, best score, rank, hit totals, and exchange ratio |
+
+### HUD Readouts
+
+The top HUD continuously tracks:
+
+- Funds
+- Wave number
+- Active threat count
+- Integrity percentage
+- Score
+- Best score
+- Rank status
+- Kill count
+- Hit count
+- Exchange ratio (`kill earnings / money spent`)
 
 ### Click Priority
 
@@ -191,7 +220,7 @@ If nothing is in range, a log entry says "No threat in range."
 
 ### C-RAM Special Behavior
 
-C-RAM (`5`) fires all 3 Phalanx batteries simultaneously. It is limited to the ADIZ (target must be inside Qatar's outline). Hardened targets (`ballistic`, `mirv`, `hypersonic`) automatically queue 4 sequential bursts (×4 cost) because a single burst has low lethality against armored re-entry vehicles.
+C-RAM (`5`) fires all 3 Phalanx batteries simultaneously. In the current implementation, the click-to-fire range check uses `isInsideQatar(...)`, so the target must be inside the Qatar outline, not merely inside the larger ADIZ polygon. Hardened targets (`ballistic`, `mirv`, `hypersonic`) automatically queue 4 sequential bursts (×4 cost) because a single burst has low lethality against armored re-entry vehicles.
 
 ---
 
@@ -271,7 +300,7 @@ Speed: instant (`999`) · Kill radius: `0.03` wu · Beam duration: `0.45 s`
 
 ### C-RAM Phalanx — Key `5` — $20/burst
 
-20mm rotary cannon. Fires 18 rounds per battery (3 batteries = 54 rounds total per burst). Extremely cheap per-burst but low lethality against hardened targets. Best value vs drone swarms. Range-limited to ADIZ.
+20mm rotary cannon. Fires 18 rounds per battery (3 batteries = 54 rounds total per burst). Extremely cheap per-burst but low lethality against hardened targets. Best value vs drone swarms. Current targeting is restricted to threats already inside the Qatar outline.
 
 | Type | Effectiveness |
 |------|---------------|
@@ -380,7 +409,7 @@ Spawned by a CBM post-split. Fast, numerous, small reward.
 
 ### Bomber
 
-Strategic bomber with 3–8 HP (scales with wave number). Flies across the entire radar edge-to-edge, dropping cruise-missile payloads at intervals while inside the ADIZ.
+Strategic bomber with 3–8 HP (scales with wave number). Flies edge-to-edge across the radar and drops payload only while inside the radar disk.
 
 - Speed: `0.055 + waveScaling × 0.005` wu/s · HP: `3 + floor(waveScaling)`, max 8
 - Reward: `$600 + floor(waveScaling × 100)`
@@ -404,7 +433,7 @@ Hostile jet with 2 HP, flare countermeasures (75% deflect chance), and strafing 
 
 ### F-15QA Fighter Jets — Key `6`, $1500
 
-Squadron launched from Al Udeid. Each jet has 5 missiles, 90-second lifetime, and autonomously hunts the highest-priority air threats.
+A 20-jet squadron launches from Al Udeid in 4 wings of 5. Each jet has 5 missiles, a 90-second lifetime, and an assigned patrol sector so the formation spreads across the radar.
 
 **Target priority:**
 1. Enemy fighters (engagement range: 0.85 wu)
@@ -414,24 +443,36 @@ Squadron launched from Al Udeid. Each jet has 5 missiles, 90-second lifetime, an
 - Kill probability per missile engagement: **90%**
 - Bomber/enemy-fighter: 1 HP damage per shot
 - Engage cooldown: 4 s between shots · Lifetime: 90 s, then RTB
-- Dispatching disables Al Udeid for a recharge period (30 s)
+- Recharge after the squadron has fully returned: 30 s
+- If Al Udeid is struck, jets become unavailable for 10 waves
 
 ### QAF Hornet UAVs — Key `8`, $600 — unlocks Wave 8
 
-Autonomous kamikaze drones hunting `drone` and `loiter` type threats. Ram on contact (destroy both UAV and target). Do not return to base.
+Launches a 10-UAV swarm from Al Udeid in 2 wings of 5. Autonomous kamikaze drones hunt only `drone` and `loiter` threats, ram on contact, and do not return to base.
 
 - Speed: `0.32` wu/s · Lifetime: 120 s · Ram range: `0.030` wu
-- Patrol: loose ellipse over central Qatar when no target is acquired
+- Patrol: east/west sector patrols when no target is acquired
 - Target scoring: prefers closer, higher-progress threats (`progress × 3 − dist`)
 - Callsigns: `UAV-01`, `UAV-02`, etc.
+- Recharge after the swarm is expended: 90 s
+- Hornets also become unavailable if Al Udeid is offline
 
 ### Naval Frigates — Key `7`, $1200 — unlocks Wave 11
 
-QN-series destroyers; see [Section 16](#16-naval-operations--frigates) for full details.
+Deploys a 7-ship QN-series frigate squadron from Al Khor Naval Base; see [Section 16](#16-naval-operations--frigates) for full details.
 
 ### Allied Air Support — $5000
 
-4-minute automatic ADIZ coverage. 5-minute cooldown. Button shows live countdown. Best saved for genuine emergencies.
+4-minute automatic interception coverage for enemies crossing into Qatar proper. Also forces the heartbeat difficulty state into a guaranteed 30-second recovery lull before normal escalation resumes. 5-minute cooldown. Button shows a live countdown.
+
+### Friendly Force Availability Rules
+
+Support systems are intentionally gated by base status and cooldown state:
+
+- **Jets** require Al Udeid to be operational and the previous squadron to have returned.
+- **Hornets** also require Al Udeid to be operational, even though they are separate units.
+- **Frigates** require Al Khor Naval Base to be operational and the previous naval deployment to have ended.
+- **Allied support** and **EW jamming** are mutually independent, but both are limited by cooldown and available funds.
 
 ---
 
@@ -472,7 +513,16 @@ The nearest active battery of the selected weapon type fires each interceptor. B
 
 - **Regen**: 0.5 HP/s passive (up to max)
 - **Adrenaline Mode**: activates at HP ≤ 30%; all kill rewards +50%
-- **Shield Powerup**: 30-second damage immunity
+- **Shield Powerup**: 30-second damage immunity plus automatic interception for threats already inside Qatar
+
+### Between-Wave Economy Notes
+
+Every new wave also grants a direct cash bonus before threats begin spawning:
+
+- Base wave bonus: `50 + wave × 8`
+- Lull-state waves receive an additional `$400`
+
+This means recovery windows are economically stronger than standard waves, by design.
 
 ---
 
@@ -601,18 +651,25 @@ clamped to [−2, +2]
 
 ## 13. Powerups
 
-Spawn from the radar edge every ~45 seconds, drift inward. Click to collect. Expire in 16–22 s; blink rapidly in the last 4 seconds.
+Spawn from the radar edge every ~45 seconds starting from Wave 2, drift inward, and expire in 16–22 s. Click to collect. They blink rapidly in the last 4 seconds.
 
 | Type | Icon | Color | Effect |
 |------|------|-------|--------|
 | Emergency Funds | `$` | Amber | +$1,200 |
-| Repair Crew | `+` | Green | +25 HP |
-| Defense Shield | `◈` | Sky blue | 30 s damage immunity |
+| Repair Crew | `+` | Green | +25 HP, clears key cooldowns, restores disabled batteries, restores Al Udeid access |
+| Defense Shield | `◈` | Sky blue | 30 s damage immunity plus automatic interception of threats already inside Qatar |
 | Intel Burst | `◎` | Purple | Clears all radar ghost contacts |
 | Overclock | `⚡` | Cyan | 2× interceptor speed for 20 s |
-| Resupply | `◉` | Gold | +$600 + reset all weapon cooldowns |
+| Resupply | `◉` | Gold | +$600 + reset laser/EW/jet cooldowns |
 
 Spawn weight: `funds` (×3), `repair` (×2), `shield`, `intel`, `overclock`, `ammo` (×2).
+
+### Powerup Collection Rules
+
+- Powerups have highest click priority on the radar.
+- Combo rewards can spawn bonus powerups directly at kill locations.
+- Shield powerup immediately clears hostile missiles already inside Qatar when collected.
+- Repair Crew is the most comprehensive recovery drop; it restores batteries and clears several disabled states in addition to healing.
 
 ---
 
@@ -624,11 +681,13 @@ Spawn weight: `funds` (×3), `repair` (×2), `shield`, `intel`, `overclock`, `am
 
 ### Divert System
 
-When active drones are detected in the ADIZ, civilian aircraft automatically divert to three safe exit corridors (south UAE, east Gulf, southwest Saudi). Inbound flights redirect before final approach.
+When hostile waves begin, active civilian aircraft are diverted toward three safe exit corridors (south UAE, east Gulf, southwest Saudi). Inbound flights redirect before final approach whenever possible.
 
 ### Civilian Incident Penalty
 
-Intercepting a civilian aircraft triggers a financial penalty and reduces RepPoints (rank penalty).
+Intercepting a civilian aircraft is catastrophic: the aircraft is destroyed, the player takes 25 HP damage, and up to $2000 is removed from current funds. The event is also recorded as a civilian incident for progression penalties.
+
+Civilian contacts are therefore not just visual flavor; they are a real fail-state amplifier if misidentified under pressure.
 
 ---
 
@@ -641,10 +700,10 @@ Fake radar blips injected by enemy EW. Appear as ballistic, cruise, or drone con
 ### EW Jamming — Key `9`, $300
 
 - Active duration: **3 minutes** (180 s) · Cooldown: **5 minutes** (300 s)
-- Marks all currently active missiles as `_jammed = true`
-- Reduces jammed missile speed to **60%** (`_jamMult = 0.60`)
+- Newly processed missiles are marked `_jammed = true` and retargeted to overshoot Qatar
+- Existing missiles are slowed heavily on activation, then ongoing jam logic stabilizes them at **60% speed** (`_jamMult = 0.60`)
 - Jammed missiles slide off-screen and do not register impacts
-- Missiles spawned after EW activation are not automatically jammed
+- The activation log announces a 40% slowdown, but the continuous update path uses a 60% multiplier in current code
 
 ---
 
@@ -652,7 +711,7 @@ Fake radar blips injected by enemy EW. Appear as ballistic, cruise, or drone con
 
 ### Deployment
 
-Key `7` or **FRIGATES** button ($1200; unlocks at Wave 11). Sails from Al Khor Naval Base (0.175, −0.133).
+Key `7` or **FRIGATES** button ($1200; unlocks at Wave 11). Deploys a 7-ship squadron from Al Khor Naval Base (0.175, −0.133), staggered by 1.2 seconds per ship.
 
 ### Patrol Zones
 
@@ -671,6 +730,7 @@ Key `7` or **FRIGATES** button ($1200; unlocks at Wave 11). Sails from Al Khor N
 
 - Deployment: **5 minutes** · VLS ammo: **24 rounds** · Recharge after RTB: **60 s**
 - Anti-ship missiles can sink a frigate (money penalty)
+- If Al Khor Naval Base is struck, the frigate squadron is disabled for 8 waves
 
 ---
 
@@ -699,22 +759,22 @@ RepPoints = max(0, round(base × mult) − penalty)
 | # | English | Arabic | Category | Rep Required |
 |---|---------|--------|----------|-------------|
 | 1 | Jundi | جندي | Enlisted | 0 |
-| 2 | Wakil Awwal | وكيل اول | Enlisted | 500 |
-| 3 | Wakil Thani | وكيل ثاني | Enlisted | 1,500 |
-| 4 | Raqib | رقيب | Enlisted | 4,000 |
-| 5 | Nayib | نائب | Enlisted | 9,000 |
-| 6 | Earif | عريف | Enlisted | 18,000 |
-| 7 | Wakil Earif | وكيل عريف | Enlisted | 35,000 |
-| 8 | Mulazim | ملازم | Officer | 60,000 |
-| 9 | Mulazim Awwal | ملازم أول | Officer | 95,000 |
-| 10 | Naqib | نقيب | Officer | 140,000 |
-| 11 | Ra'id | رائد | Officer | 200,000 |
-| 12 | Muqaddam | مقدم | Officer | 280,000 |
-| 13 | Aqid | عقيد | Officer | 380,000 |
-| 14 | Amid | عميد | Officer | 500,000 |
-| 15 | Liwa | لواء | Officer | 650,000 |
-| 16 | Fariq | فريق | Officer | 850,000 |
-| 17 | Fariq Awwal | فريق اول | Officer | 1,100,000 |
+| 2 | Wakil Earif | وكيل عريف | Enlisted | 800 |
+| 3 | Earif | عريف | Enlisted | 2,500 |
+| 4 | Nayib | نائب | Enlisted | 6,000 |
+| 5 | Raqib | رقيب | Enlisted | 12,000 |
+| 6 | Wakil Thani | وكيل ثاني | Enlisted | 22,000 |
+| 7 | Wakil Awwal | وكيل اول | Enlisted | 36,000 |
+| 8 | Mulazim | ملازم | Officer | 55,000 |
+| 9 | Mulazim Awwal | ملازم أول | Officer | 80,000 |
+| 10 | Naqib | نقيب | Officer | 115,000 |
+| 11 | Ra'id | رائد | Officer | 160,000 |
+| 12 | Muqaddam | مقدم | Officer | 220,000 |
+| 13 | Aqid | عقيد | Officer | 295,000 |
+| 14 | Amid | عميد | Officer | 385,000 |
+| 15 | Liwa | لواء | Officer | 490,000 |
+| 16 | Fariq | فريق | Officer | 620,000 |
+| 17 | Fariq Awwal | فريق أول | Officer | 790,000 |
 
 ### Persistent Cookie Keys
 
@@ -770,7 +830,7 @@ Distinctive machine-gun loop during Phalanx bursts. First-ever C-RAM fire plays 
 
 ### Air-Raid Siren
 
-Triggers automatically when any threat crosses the ADIZ boundary. 1-second arm delay; won't re-trigger until the current siren finishes.
+Triggers automatically when threats cross the monitored Qatar airspace boundary. It is rate-limited in radar logic and is also stopped automatically when no threats remain.
 
 ### Voice Callouts
 
@@ -823,7 +883,7 @@ y: −0.31 to +0.23
 
 ### ADIZ
 
-Qatar outline polygon expanded radially 100 km (≈0.333 wu) from centroid (0.003, 0.011). C-RAM targeting is restricted to within the ADIZ boundary.
+Qatar outline polygon expanded radially 100 km (≈0.333 wu) from centroid (0.003, 0.011). The ADIZ is used by radar logic, border-crossing alerts, and support messaging. Current C-RAM click targeting is stricter and checks the Qatar outline itself.
 
 ### Coordinate Transforms
 
@@ -942,8 +1002,17 @@ gameLoop(timestamp)
 | `isLaserReady()` / `triggerLaserCooldown()` | Iron Beam cooldown |
 | `isBatteryAvailable(type)` | Check battery status |
 | `setCallbacks(obj)` | Wire UIManager event callbacks |
-| `dispatchJets()` / `dispatchHornets()` / `dispatchFrigates()` | Launch friendly forces |
-| `activateEW()` / `activateAlliedSupport()` | Activate support systems |
+| `dispatchFighterJet()` / `dispatchHornetSquadron()` / `dispatchFrigates()` | Launch friendly forces |
+| `dispatchEW()` / `activateAlliedSupport()` | Activate support systems |
+
+### Persistence Model
+
+The game currently uses two persistence systems:
+
+- **Cookies** for player-facing progression and historical stats such as rank, high score, games played, and streaks.
+- **localStorage / IndexedDB** for the DDA agent's learned state and optional neural-net upgrade.
+
+This separation is intentional: player progression is lightweight and easy to clear from the UI, while AI learning persists independently across sessions.
 
 ---
 
@@ -990,13 +1059,20 @@ Workflow: `.github/workflows/webpack.yml`
 1. `actions/checkout@v4.2.2`
 2. `actions/setup-node@v4.4.0` — Node 24 with npm cache
 3. `npm ci` → `npm run build`
-4. Upload `dist/` as Pages artifact
+4. `test -f dist/index.html` to fail early on broken builds
+5. `touch dist/.nojekyll` for Pages compatibility
+6. `actions/configure-pages@v5`
+7. Upload `dist/` as Pages artifact
 
 **deploy** job (non-PR pushes only):
 - `actions/deploy-pages@v4` → GitHub Pages
 - URL exposed as `steps.deployment.outputs.page_url`
 
-Permissions: `contents: read`, `pages: write`, `id-token: write`
+Permissions are least-privilege by job:
+
+- **workflow default**: `contents: read`
+- **build job**: `contents: read`
+- **deploy job**: `pages: write`, `id-token: write`
 
 ---
 
@@ -1012,13 +1088,17 @@ Permissions: `contents: read`, `pages: write`, `id-token: write`
 | Radar scan speed | `Radar.js` | 1.1 rad/s |
 | Zoom range | `Radar.js` | 0.5×–4.0× |
 | Iron Beam cooldown | `Game.js` | 8 s |
+| Jet squadron size | `Game.js` | 20 jets |
 | Jet recharge cooldown | `Game.js` | 30 s |
+| Hornet swarm size | `Game.js` | 10 UAVs |
 | Hornet recharge cooldown | `Game.js` | 90 s |
+| Frigate fleet size | `Game.js` | 7 ships |
 | Frigate recharge cooldown | `Game.js` | 60 s |
 | EW active duration | `Game.js` | 180 s |
 | EW cooldown | `Game.js` | 300 s |
 | Allied support duration | `Game.js` | 240 s |
 | Allied support cooldown | `Game.js` | 300 s |
+| Shield duration | `Powerup.js` / `Game.js` collect path | 30 s |
 | Powerup spawn interval | `Game.js` | 45 s |
 | Powerup lifetime | `Powerup.js` | 16–22 s |
 | TGP passive rate | `Game.js` | 1.0 + wave × 0.04 TGP/s |
@@ -1041,7 +1121,7 @@ Permissions: `contents: read`, `pages: write`, `id-token: write`
 
 - Never go bankrupt. An empty wallet when the next wave peaks means zero defense.
 - Use **Iron Beam** ($40) on drone waves — cheapest effective per-kill.
-- **C-RAM** ($20/burst) is even cheaper for ADIZ swarms; reserve for large drone groups inside Qatar.
+- **C-RAM** ($20/burst) is even cheaper for inner-perimeter swarms; use it once drones are already inside Qatar.
 - **Arrow-3** ($380) only for ballistics, MIRVs, hypersonics, cluster missiles. Never on drones.
 - **SHORAD** ($70) is your workhorse for drones and cruise missiles in early waves.
 
@@ -1068,7 +1148,7 @@ Deploy into the Gulf as a forward interception layer. They catch cruise and anti
 
 ### Allied Support
 
-Save $5,000 for double-PEAK sequences or a SATURATION wave while your batteries are depleted. The 5-minute cooldown means you cannot rely on it regularly.
+Save $5,000 for double-PEAK sequences or a SATURATION wave while your batteries are depleted. It also buys a guaranteed 30-second difficulty lull, so it has both tactical and pacing value.
 
 ### Adrenaline Mode (HP ≤ 30%)
 

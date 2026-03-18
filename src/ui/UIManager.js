@@ -18,39 +18,45 @@ const PSA_VIDEOS = [
 
 // ── Rank system ─────────────────────────────────────────────────────────────
 const RANKS = [
-    { id: 'jundi',       nameAr: 'جندي',     nameEn: 'Jundi',         cat: 'ENLISTED', file: null,                repPoints: 0        },
-    { id: 'wakil_awwal', nameAr: 'وكيل اول',  nameEn: 'Wakil Awwal',  cat: 'ENLISTED', file: 'Wakil awwal.png',   repPoints: 500      },
-    { id: 'wakil_thani', nameAr: 'وكيل ثاني', nameEn: 'Wakil Thani',  cat: 'ENLISTED', file: 'Wakil thani.png',   repPoints: 1500     },
-    { id: 'raqib',       nameAr: 'رقيب',       nameEn: 'Raqib',        cat: 'ENLISTED', file: 'Raqib.png',         repPoints: 4000     },
-    { id: 'nayib',       nameAr: 'نائب',       nameEn: 'Nayib',        cat: 'ENLISTED', file: 'Nayib.png',         repPoints: 9000     },
-    { id: 'earif',       nameAr: 'عريف',       nameEn: 'Earif',        cat: 'ENLISTED', file: 'Earif.png',         repPoints: 18000    },
-    { id: 'wakil_earif', nameAr: 'وكيل عريف',  nameEn: 'Wakil Earif',  cat: 'ENLISTED', file: 'Wakil Earif.png',   repPoints: 35000    },
-    { id: 'mulazim',     nameAr: 'ملازم',      nameEn: 'Mulazim',       cat: 'OFFICER',  file: 'Mulazim.png',      repPoints: 60000    },
-    { id: 'mulazim_aw',  nameAr: 'ملازم أول',  nameEn: 'Mulazim Awwal', cat: 'OFFICER',  file: 'Mulazim awwal.png',repPoints: 95000    },
-    { id: 'naqib',       nameAr: 'نقيب',       nameEn: 'Naqib',         cat: 'OFFICER',  file: 'Naqib.png',        repPoints: 140000   },
-    { id: 'raid',        nameAr: 'رائد',       nameEn: "Ra'id",         cat: 'OFFICER',  file: "Ra'id.png",        repPoints: 200000   },
-    { id: 'muqaddam',    nameAr: 'مقدم',       nameEn: 'Muqaddam',      cat: 'OFFICER',  file: 'Muqaddam.png',     repPoints: 280000   },
-    { id: 'aqid',        nameAr: 'عقيد',       nameEn: 'Aqid',          cat: 'OFFICER',  file: 'Aqid.png',         repPoints: 380000   },
-    { id: 'amid',        nameAr: 'عميد',       nameEn: 'Amid',          cat: 'OFFICER',  file: 'Amid.png',         repPoints: 500000   },
-    { id: 'liwa',        nameAr: 'لواء',       nameEn: 'Liwa',          cat: 'OFFICER',  file: 'Liwa.png',         repPoints: 650000   },
-    { id: 'fariq',       nameAr: 'فريق',       nameEn: 'Fariq',         cat: 'OFFICER',  file: 'Fariq.png',        repPoints: 850000   },
-    { id: 'fariq_awwal', nameAr: 'فريق اول',   nameEn: 'Fariq Awwal',   cat: 'OFFICER',  file: 'Fariq awwal.png',  repPoints: 1100000  },
+    // ── Enlisted ─────────────────────────────────────────────────────────────
+    { id: 'jundi',       nameAr: 'جندي',      nameEn: 'Jundi',         nato: 'Private',                  cat: 'ENLISTED', file: null,                 repPoints: 0       },
+    { id: 'wakil_earif', nameAr: 'وكيل عريف', nameEn: 'Wakil Earif',   nato: 'Lance Corporal',           cat: 'ENLISTED', file: 'Wakil Earif.png',    repPoints: 1000    },
+    { id: 'earif',       nameAr: 'عريف',      nameEn: 'Earif',          nato: 'Corporal',                 cat: 'ENLISTED', file: 'Earif.png',          repPoints: 3000    },
+    { id: 'nayib',       nameAr: 'نائب',      nameEn: 'Nayib',          nato: 'Sergeant',                 cat: 'ENLISTED', file: 'Nayib.png',          repPoints: 7500    },
+    { id: 'raqib',       nameAr: 'رقيب',      nameEn: 'Raqib',          nato: 'Staff Sergeant',           cat: 'ENLISTED', file: 'Raqib.png',          repPoints: 15000   },
+    { id: 'wakil_thani', nameAr: 'وكيل ثاني', nameEn: 'Wakil Thani',   nato: 'Warrant Officer Class 2',  cat: 'ENLISTED', file: 'Wakil thani.png',    repPoints: 28000   },
+    { id: 'wakil_awwal', nameAr: 'وكيل اول',  nameEn: 'Wakil Awwal',   nato: 'Warrant Officer Class 1',  cat: 'ENLISTED', file: 'Wakil awwal.png',    repPoints: 46000   },
+    // ── Officer ──────────────────────────────────────────────────────────────
+    { id: 'mulazim',     nameAr: 'ملازم',     nameEn: 'Mulazim',        nato: '2nd Lieutenant',           cat: 'OFFICER',  file: 'Mulazim.png',        repPoints: 70000   },
+    { id: 'mulazim_aw',  nameAr: 'ملازم أول', nameEn: 'Mulazim Awwal',  nato: '1st Lieutenant',           cat: 'OFFICER',  file: 'Mulazim awwal.png',  repPoints: 100000  },
+    { id: 'naqib',       nameAr: 'نقيب',      nameEn: 'Naqib',          nato: 'Captain',                  cat: 'OFFICER',  file: 'Naqib.png',          repPoints: 145000  },
+    { id: 'raid',        nameAr: 'رائد',      nameEn: "Ra'id",           nato: 'Major',                    cat: 'OFFICER',  file: "Ra'id.png",          repPoints: 200000  },
+    { id: 'muqaddam',    nameAr: 'مقدم',      nameEn: 'Muqaddam',       nato: 'Lieutenant Colonel',       cat: 'OFFICER',  file: 'Muqaddam.png',       repPoints: 270000  },
+    { id: 'aqid',        nameAr: 'عقيد',      nameEn: 'Aqid',           nato: 'Colonel',                  cat: 'OFFICER',  file: 'Aqid.png',           repPoints: 360000  },
+    { id: 'amid',        nameAr: 'عميد',      nameEn: 'Amid',           nato: 'Brigadier General',        cat: 'OFFICER',  file: 'Amid.png',           repPoints: 470000  },
+    { id: 'liwa',        nameAr: 'لواء',      nameEn: 'Liwa',           nato: 'Major General',            cat: 'OFFICER',  file: 'Liwa.png',           repPoints: 600000  },
+    { id: 'fariq',       nameAr: 'فريق',      nameEn: 'Fariq',          nato: 'Lieutenant General',       cat: 'OFFICER',  file: 'Fariq.png',          repPoints: 760000  },
+    { id: 'fariq_awwal', nameAr: 'فريق أول',  nameEn: 'Fariq Awwal',   nato: 'General',                  cat: 'OFFICER',  file: 'Fariq awwal.png',    repPoints: 960000  },
 ];
 
-// Multi-pathway RepPoints formula — rank is based on experience, NOT score
-// totalWaves replaces gamesPlayed — cumulative across all sessions via cookie
-function _computeRepPoints(totalKills, playtimeSec, totalWaves, bestStreak, penalty) {
-    const base = totalKills * 8
+// Multi-pathway RepPoints formula
+// gamesPlayed = full sessions ended by game-over (discharges excluded)
+// totalWaves  = cumulative waves survived across all sessions (cookie qad_wv)
+function _computeRepPoints(totalKills, playtimeSec, totalWaves, gamesPlayed, bestStreak, penalty) {
+    const base = totalKills  * 8
                + Math.floor(playtimeSec / 60) * 50
-               + totalWaves * 12
-               + bestStreak * 20;
+               + totalWaves  * 12
+               + gamesPlayed * 40
+               + bestStreak  * 20;
     let mult = 1.0;
-    if (bestStreak >= 5)   mult += 0.10;
-    if (bestStreak >= 10)  mult += 0.12;
-    if (totalWaves >= 20)  mult += 0.08;
-    if (totalWaves >= 50)  mult += 0.10;
-    if (totalKills >= 200) mult += 0.08;
-    if (totalKills >= 500) mult += 0.10;
+    if (bestStreak  >= 5)  mult += 0.10;
+    if (bestStreak  >= 10) mult += 0.12;
+    if (totalWaves  >= 20) mult += 0.08;
+    if (totalWaves  >= 50) mult += 0.10;
+    if (gamesPlayed >= 10) mult += 0.06;
+    if (gamesPlayed >= 30) mult += 0.08;
+    if (totalKills  >= 200) mult += 0.08;
+    if (totalKills  >= 500) mult += 0.10;
     return Math.max(0, Math.round(base * mult) - (penalty || 0));
 }
 
@@ -141,8 +147,9 @@ export class UIManager {
         this._totalPlaytime= parseInt(_getCookie('qad_pt')  || '0', 10);
         this._bestStreak   = parseInt(_getCookie('qad_ks')  || '0', 10);
         this._totalWaves   = parseInt(_getCookie('qad_wv')  || '0', 10); // cumulative waves across all sessions
+        this._gamesPlayed  = parseInt(_getCookie('qad_gp')  || '0', 10); // full game-over sessions only
         this._repPenalty   = parseInt(_getCookie('qad_rkp') || '0', 10);
-        this._currentRank  = _getRank(_computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._bestStreak, this._repPenalty));
+        this._currentRank  = _getRank(_computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._gamesPlayed, this._bestStreak, this._repPenalty));
 
         // PSA cutscene state
         this._psaPlaylist    = _shuffleArr(PSA_VIDEOS);
@@ -200,6 +207,10 @@ export class UIManager {
             onCivilianIncident: ()                     => this._onCivilianIncident(),
         });
 
+        // Seed meta-difficulty from career stats so veterans face a steeper game
+        const rankIdx = RANKS.indexOf(this._currentRank);
+        game.setMetaDifficulty?.(rankIdx, this._totalKills, this._totalWaves);
+
         this._updateKillBoard();
         this._updateHitBoard();
         this._updateInterval = setInterval(() => this._updateHUD(), 100);
@@ -231,8 +242,13 @@ export class UIManager {
         const overlay = document.getElementById('rankInfoOverlay');
         if (!overlay) return;
 
-        const rank = this._currentRank;
-        const effectiveRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._bestStreak, this._repPenalty);
+        // Use live values: cookie baseline + current session progress
+        const gs           = this.game.getGameState?.() || {};
+        const liveKills    = this._totalKills    + (gs.getInterceptionsCount?.() || 0);
+        const livePlaytime = this._totalPlaytime + Math.round(this.game.getGameTime?.() || 0);
+        const liveStreak   = Math.max(this._bestStreak, this.game.getPeakStreak?.() || 0);
+        const effectiveRp  = _computeRepPoints(liveKills, livePlaytime, this._totalWaves, this._gamesPlayed, liveStreak, this._repPenalty);
+        const rank         = _getRank(effectiveRp);
 
         // Insignia
         const ins = document.getElementById('rankInfoInsignia');
@@ -249,10 +265,32 @@ export class UIManager {
         set('rankInfoCat',    rank.cat);
         set('rankInfoNameEn', rank.nameEn.toUpperCase());
         set('rankInfoNameAr', rank.nameAr);
-        set('rankInfoKills',  this._totalKills.toLocaleString());
-        set('rankInfoGames',  this._totalWaves.toLocaleString());
-        set('rankInfoStreak', this._bestStreak.toLocaleString());
-        set('rankInfoRp',     effectiveRp.toLocaleString());
+        set('rankInfoNato',   rank.nato ? `≈ ${rank.nato}` : '');
+
+        // Playtime: live (cookie + current session)
+        const ptH = Math.floor(livePlaytime / 3600);
+        const ptM = Math.floor((livePlaytime % 3600) / 60);
+        const ptS = livePlaytime % 60;
+        const ptStr = ptH > 0 ? `${ptH}h ${ptM}m` : ptM > 0 ? `${ptM}m ${ptS}s` : `${ptS}s`;
+
+        set('rankInfoKills',    liveKills.toLocaleString());
+        set('rankInfoStreak',   liveStreak.toLocaleString());
+        set('rankInfoPlaytime', ptStr);
+        set('rankInfoGames',    this._gamesPlayed.toLocaleString());
+        set('rankInfoWaves',    this._totalWaves.toLocaleString());
+        set('rankInfoHs',       this._highScore.toLocaleString());
+        set('rankInfoRp',       effectiveRp.toLocaleString());
+
+        // Demotion penalty — show row only when non-zero
+        const penLbl = document.getElementById('rankInfoPenaltyLbl');
+        const penVal = document.getElementById('rankInfoPenalty');
+        if (this._repPenalty > 0) {
+            if (penLbl) penLbl.style.display = '';
+            if (penVal) { penVal.style.display = ''; penVal.textContent = `-${this._repPenalty.toLocaleString()}`; }
+        } else {
+            if (penLbl) penLbl.style.display = 'none';
+            if (penVal) penVal.style.display  = 'none';
+        }
 
         // Progress bar
         const nextIdx = RANKS.indexOf(rank) + 1;
@@ -297,7 +335,7 @@ export class UIManager {
         });
 
         document.getElementById('clearDataBtn')?.addEventListener('click', () => {
-            if (!confirm(`Clear all saved data?\n\nThis will permanently reset:\n• High Score\n• Rank (${this._currentRank.nameEn}) — you will return to Jundi\n• Total Kills: ${this._totalKills}\n• Playtime: ${Math.floor(this._totalPlaytime/60)} min\n• Total Waves: ${this._totalWaves}\n• Best Streak: ${this._bestStreak}\n\nThis cannot be undone.`)) return;
+            if (!confirm(`Clear all saved data?\n\nThis will permanently reset:\n• High Score\n• Rank (${this._currentRank.nameEn}) — you will return to Jundi\n• Total Kills: ${this._totalKills}\n• Playtime: ${Math.floor(this._totalPlaytime/60)} min\n• Games Played: ${this._gamesPlayed} | Total Waves: ${this._totalWaves}\n• Best Streak: ${this._bestStreak}\n\nThis cannot be undone.`)) return;
             // Expire all cookies then recreate at 0
             const KEYS = ['qad_hs','qad_cs','qad_gp','qad_tk','qad_pt','qad_ks','qad_rkp','qad_wv'];
             // Delete each cookie (expire it), then immediately recreate with value 0
@@ -614,7 +652,7 @@ export class UIManager {
             const liveKills    = this._totalKills    + (gs.getInterceptionsCount?.() || 0);
             const livePlaytime = this._totalPlaytime + Math.round(this.game.getGameTime?.() || 0);
             const liveStreak   = Math.max(this._bestStreak, this.game.getPeakStreak?.() || 0);
-            const liveRp       = _computeRepPoints(liveKills, livePlaytime, this._totalWaves, liveStreak, this._repPenalty);
+            const liveRp       = _computeRepPoints(liveKills, livePlaytime, this._totalWaves, this._gamesPlayed, liveStreak, this._repPenalty);
             const liveRank     = _getRank(liveRp);
             if (liveRank.id !== this._currentRank.id) {
                 this._currentRank = liveRank;
@@ -739,10 +777,10 @@ export class UIManager {
                 setText(els.hornetBtn, `◈ HORNETS ACTIVE (${activeUAVs} alive)`);
                 els.hornetBtn.style.opacity = '0.6';
             } else if (!hReady) {
-                setText(els.hornetBtn, `◈ [5] RECHARGING ${hCooldown}s`);
+                setText(els.hornetBtn, `◈ [8] RECHARGING ${hCooldown}s`);
                 els.hornetBtn.style.opacity = '0.55';
             } else {
-                setText(els.hornetBtn, '◈ [5] LAUNCH 10 HORNETS ($600)');
+                setText(els.hornetBtn, '◈ [8] LAUNCH 10 HORNETS ($600)');
                 els.hornetBtn.style.opacity = '1';
             }
         }
@@ -940,19 +978,21 @@ export class UIManager {
         this._cumScore += score;
         _setCookie('qad_cs', this._cumScore);
 
-        // Accumulate kills, playtime, best streak
+        // Accumulate kills, playtime, best streak, games played
         const gameKills    = gs.getInterceptionsCount();
         const gamePlaytime = Math.round(this.game.getGameTime?.() || 0);
         const gameStreak   = this.game.getPeakStreak?.() || 0;
         this._totalKills    += gameKills;
         this._totalPlaytime += gamePlaytime;
+        this._gamesPlayed++;
         if (gameStreak > this._bestStreak) this._bestStreak = gameStreak;
         _setCookie('qad_tk', this._totalKills);
         _setCookie('qad_pt', this._totalPlaytime);
         _setCookie('qad_ks', this._bestStreak);
+        _setCookie('qad_gp', this._gamesPlayed);
 
         const oldRank = this._currentRank;
-        const newRepPoints = _computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._bestStreak, this._repPenalty);
+        const newRepPoints = _computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._gamesPlayed, this._bestStreak, this._repPenalty);
         const newRank = _getRank(newRepPoints);
         const rankedUp = RANKS.indexOf(newRank) > RANKS.indexOf(oldRank);
         this._currentRank = newRank;
@@ -980,7 +1020,7 @@ export class UIManager {
         const finalCumEl = document.getElementById('finalCumScore');
         if (finalCumEl) finalCumEl.textContent = `RP: ${newRepPoints.toLocaleString()} (Kills:${this._totalKills} | ${Math.floor(this._totalPlaytime/60)}min | Streak:${this._bestStreak})`;
         const finalGamesEl = document.getElementById('finalGamesPlayed');
-        if (finalGamesEl) finalGamesEl.textContent = this._totalWaves;
+        if (finalGamesEl) finalGamesEl.textContent = this._gamesPlayed;
 
         // Show promotion screen after a short delay if ranked up
         if (rankedUp) {
@@ -1051,7 +1091,7 @@ export class UIManager {
         const oldRank = this._currentRank;
 
         // Apply penalty: set penalty so effective repPoints floors at targetRank
-        const currentRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._bestStreak, this._repPenalty);
+        const currentRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._gamesPlayed, this._bestStreak, this._repPenalty);
         const needed = currentRp - targetRank.repPoints;
         if (needed > 0) this._repPenalty += needed;
         _setCookie('qad_rkp', this._repPenalty);
