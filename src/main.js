@@ -51,39 +51,11 @@ if (startScreen) {
     const beginBtn = document.getElementById('beginBtn');
     const vid      = document.getElementById('openingVideo');
 
-    // ── Loading overlay (bottom bar over video) ────────────────────────────
-    const overlay = document.createElement('div');
-    overlay.style.cssText = [
-        'position:absolute;bottom:0;left:0;right:0;z-index:11;',
-        'padding:18px 28px 26px;',
-        'background:linear-gradient(transparent,rgba(0,0,0,0.92));',
-        'pointer-events:none;',
-        'transition:opacity 0.6s ease',
-    ].join('');
-    overlay.innerHTML = `
-        <div id="_loadLbl" style="
-            color:#94a3b8;font-family:monospace;font-size:0.70em;
-            letter-spacing:1.8px;margin-bottom:9px;text-transform:uppercase;
-            text-shadow:0 0 8px rgba(59,130,246,0.4)">
-            ◈ INITIALIZING SYSTEMS…
-        </div>
-        <div style="background:rgba(255,255,255,0.08);border-radius:3px;
-                    height:6px;overflow:hidden;box-shadow:0 0 10px rgba(59,130,246,0.2)">
-            <div id="_loadBar" style="
-                height:100%;width:0%;
-                background:linear-gradient(90deg,#1e40af,#3b82f6,#60a5fa);
-                transition:width 0.15s linear;
-                box-shadow:0 0 8px rgba(59,130,246,0.6)"></div>
-        </div>
-        <div id="_loadPct" style="
-            color:#64748b;font-family:monospace;font-size:0.60em;
-            letter-spacing:1px;margin-top:6px;text-align:right">0 / 0</div>
-    `;
-    startScreen.appendChild(overlay);
-
-    const lbl = overlay.querySelector('#_loadLbl');
-    const bar = overlay.querySelector('#_loadBar');
-    const pct = overlay.querySelector('#_loadPct');
+    // ── Loading bar (static HTML elements in index.html) ──────────────────
+    const loadingBar = document.getElementById('loadingBar');
+    const lbl = document.getElementById('loadLabel');
+    const bar = document.getElementById('loadFill');
+    const pct = document.getElementById('loadCount');
 
     // ── Asset preloading ───────────────────────────────────────────────────
     const M = 'assets/sounds/Music/';
@@ -137,51 +109,40 @@ if (startScreen) {
     function assetLoaded(label) {
         if (unlocked) return;
         loadedCount++;
-        const fraction = loadedCount / total;
-        bar.style.width = `${(fraction * 100).toFixed(1)}%`;
-        pct.textContent = `${loadedCount} / ${total}`;
-        lbl.textContent = `◈ LOADING: ${label}`;
+        const pct100 = ((loadedCount / total) * 100).toFixed(1);
+        if (bar) bar.style.width = `${pct100}%`;
+        if (pct) pct.textContent = `${loadedCount} / ${total}`;
+        if (lbl) lbl.textContent = `◈ LOADING: ${label}`;
         if (loadedCount >= total) unlock();
     }
 
     function unlock() {
         if (unlocked) return;
         unlocked = true;
-        lbl.textContent  = '◈ DEFENSE SYSTEMS READY';
-        bar.style.background = 'linear-gradient(90deg,#065f46,#10b981,#34d399)';
-        bar.style.width  = '100%';
-        pct.textContent  = `${total} / ${total}`;
-        beginBtn.disabled    = false;
-        beginBtn.textContent = '▶ ACTIVATE DEFENSE SYSTEM';
-        setTimeout(() => { overlay.style.opacity = '0'; }, 1400);
+        if (lbl) lbl.textContent  = '◈ DEFENSE SYSTEMS READY';
+        if (bar) { bar.style.background = 'linear-gradient(90deg,#065f46,#10b981,#34d399)'; bar.style.width = '100%'; }
+        if (pct) pct.textContent  = `${total} / ${total}`;
+        if (beginBtn) { beginBtn.disabled = false; beginBtn.textContent = '▶ ACTIVATE DEFENSE SYSTEM'; }
+        if (loadingBar) setTimeout(() => { loadingBar.style.opacity = '0'; }, 1400);
     }
 
-    // Safety: force unlock after 20 s so the screen never stays stuck
-    setTimeout(() => unlock(), 20000);
-
-    // Start progress bar immediately at 0
-    bar.style.width = '0%';
-    pct.textContent = `0 / ${total}`;
-
-    const PER_ASSET_TIMEOUT = 6000; // ms before giving up on a single asset
+    // Show initial count
+    if (pct) pct.textContent = `0 / ${total}`;
+    if (bar) bar.style.width = '0%';
 
     for (const asset of ASSETS) {
         if (asset.img) {
+            // Images: use Image element — onload/onerror reliably fire
             const img = new Image();
-            img.onload = img.onerror = () => assetLoaded(asset.label);
+            img.onload  = () => assetLoaded(asset.label);
+            img.onerror = () => assetLoaded(asset.label);
             img.src = asset.src;
         } else {
-            const a = new Audio();
-            let done = false;
-            const finish = () => { if (!done) { done = true; assetLoaded(asset.label); } };
-            // canplay fires as soon as the browser can start playing (doesn't need full buffer)
-            a.addEventListener('canplay',    finish, { once: true });
-            a.addEventListener('loadeddata', finish, { once: true });
-            a.addEventListener('error',      finish, { once: true });
-            setTimeout(finish, PER_ASSET_TIMEOUT); // fallback if browser stalls
-            a.preload = 'auto';
-            a.src = asset.src;
-            a.load();
+            // Audio: fetch() fully downloads the file — always resolves, no browser quirks
+            fetch(asset.src)
+                .then(r => r.arrayBuffer())
+                .then(() => assetLoaded(asset.label))
+                .catch(() => assetLoaded(asset.label));
         }
     }
 
