@@ -38,18 +38,19 @@ const RANKS = [
 ];
 
 // Multi-pathway RepPoints formula — rank is based on experience, NOT score
-function _computeRepPoints(totalKills, playtimeSec, gamesPlayed, bestStreak, penalty) {
+// totalWaves replaces gamesPlayed — cumulative across all sessions via cookie
+function _computeRepPoints(totalKills, playtimeSec, totalWaves, bestStreak, penalty) {
     const base = totalKills * 8
                + Math.floor(playtimeSec / 60) * 50
-               + gamesPlayed * 30
+               + totalWaves * 12
                + bestStreak * 20;
     let mult = 1.0;
-    if (bestStreak >= 5)    mult += 0.10; // Combat specialist pathway
-    if (bestStreak >= 10)   mult += 0.12; // Elite combat pathway
-    if (gamesPlayed >= 10)  mult += 0.08; // Leadership pathway
-    if (gamesPlayed >= 25)  mult += 0.10; // Veteran commander pathway
-    if (totalKills >= 200)  mult += 0.08; // Veteran kills pathway
-    if (totalKills >= 500)  mult += 0.10; // Elite veteran pathway
+    if (bestStreak >= 5)   mult += 0.10;
+    if (bestStreak >= 10)  mult += 0.12;
+    if (totalWaves >= 20)  mult += 0.08;
+    if (totalWaves >= 50)  mult += 0.10;
+    if (totalKills >= 200) mult += 0.08;
+    if (totalKills >= 500) mult += 0.10;
     return Math.max(0, Math.round(base * mult) - (penalty || 0));
 }
 
@@ -134,14 +135,14 @@ export class UIManager {
         this._impactCounts = {}; // hits taken by missile type
         this._totalImpacts = 0;
         this._waveTimer    = null;
-        this._highScore    = parseInt(_getCookie('qad_hs') || '0', 10);
-        this._cumScore     = parseInt(_getCookie('qad_cs') || '0', 10); // kept for score display only
-        this._gamesPlayed  = parseInt(_getCookie('qad_gp') || '0', 10);
-        this._totalKills   = parseInt(_getCookie('qad_tk') || '0', 10);
-        this._totalPlaytime= parseInt(_getCookie('qad_pt') || '0', 10); // seconds
-        this._bestStreak   = parseInt(_getCookie('qad_ks') || '0', 10);
+        this._highScore    = parseInt(_getCookie('qad_hs')  || '0', 10);
+        this._cumScore     = parseInt(_getCookie('qad_cs')  || '0', 10);
+        this._totalKills   = parseInt(_getCookie('qad_tk')  || '0', 10);
+        this._totalPlaytime= parseInt(_getCookie('qad_pt')  || '0', 10);
+        this._bestStreak   = parseInt(_getCookie('qad_ks')  || '0', 10);
+        this._totalWaves   = parseInt(_getCookie('qad_wv')  || '0', 10); // cumulative waves across all sessions
         this._repPenalty   = parseInt(_getCookie('qad_rkp') || '0', 10);
-        this._currentRank  = _getRank(_computeRepPoints(this._totalKills, this._totalPlaytime, this._gamesPlayed, this._bestStreak, this._repPenalty));
+        this._currentRank  = _getRank(_computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._bestStreak, this._repPenalty));
 
         // PSA cutscene state
         this._psaPlaylist    = _shuffleArr(PSA_VIDEOS);
@@ -231,7 +232,7 @@ export class UIManager {
         if (!overlay) return;
 
         const rank = this._currentRank;
-        const effectiveRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._gamesPlayed, this._bestStreak, this._repPenalty);
+        const effectiveRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._bestStreak, this._repPenalty);
 
         // Insignia
         const ins = document.getElementById('rankInfoInsignia');
@@ -249,7 +250,7 @@ export class UIManager {
         set('rankInfoNameEn', rank.nameEn.toUpperCase());
         set('rankInfoNameAr', rank.nameAr);
         set('rankInfoKills',  this._totalKills.toLocaleString());
-        set('rankInfoGames',  this._gamesPlayed.toLocaleString());
+        set('rankInfoGames',  this._totalWaves.toLocaleString());
         set('rankInfoStreak', this._bestStreak.toLocaleString());
         set('rankInfoRp',     effectiveRp.toLocaleString());
 
@@ -296,9 +297,9 @@ export class UIManager {
         });
 
         document.getElementById('clearDataBtn')?.addEventListener('click', () => {
-            if (!confirm(`Clear all saved data?\n\nThis will permanently reset:\n• High Score\n• Rank (${this._currentRank.nameEn}) — you will return to Jundi\n• Total Kills: ${this._totalKills}\n• Playtime: ${Math.floor(this._totalPlaytime/60)} min\n• Games Played: ${this._gamesPlayed}\n• Best Streak: ${this._bestStreak}\n\nThis cannot be undone.`)) return;
-            // Expire the high score cookie
-            const KEYS = ['qad_hs','qad_cs','qad_gp','qad_tk','qad_pt','qad_ks','qad_rkp'];
+            if (!confirm(`Clear all saved data?\n\nThis will permanently reset:\n• High Score\n• Rank (${this._currentRank.nameEn}) — you will return to Jundi\n• Total Kills: ${this._totalKills}\n• Playtime: ${Math.floor(this._totalPlaytime/60)} min\n• Total Waves: ${this._totalWaves}\n• Best Streak: ${this._bestStreak}\n\nThis cannot be undone.`)) return;
+            // Expire all cookies then recreate at 0
+            const KEYS = ['qad_hs','qad_cs','qad_gp','qad_tk','qad_pt','qad_ks','qad_rkp','qad_wv'];
             // Delete each cookie (expire it), then immediately recreate with value 0
             KEYS.forEach(k => {
                 document.cookie = `${k}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Lax`;
@@ -608,7 +609,18 @@ export class UIManager {
             els.bestDisplay.textContent = this._highScore.toLocaleString();
         }
 
-        // --- Rank display ---
+        // --- Live RP tracking — update rank in real time ---
+        {
+            const liveKills    = this._totalKills    + (gs.getInterceptionsCount?.() || 0);
+            const livePlaytime = this._totalPlaytime + Math.round(this.game.getGameTime?.() || 0);
+            const liveStreak   = Math.max(this._bestStreak, this.game.getPeakStreak?.() || 0);
+            const liveRp       = _computeRepPoints(liveKills, livePlaytime, this._totalWaves, liveStreak, this._repPenalty);
+            const liveRank     = _getRank(liveRp);
+            if (liveRank.id !== this._currentRank.id) {
+                this._currentRank = liveRank;
+                this._prev.rank   = null; // force DOM update below
+            }
+        }
         if (this._currentRank.id !== this._prev.rank) {
             this._prev.rank = this._currentRank.id;
             this._applyRankDisplay(this._currentRank);
@@ -901,6 +913,9 @@ export class UIManager {
             clearTimeout(this._waveTimer);
             this._waveTimer = setTimeout(() => { el.classList.remove('show'); el.classList.add('hidden'); }, 3800);
         }
+        // Persist cumulative wave count immediately
+        this._totalWaves++;
+        _setCookie('qad_wv', this._totalWaves);
     }
 
     _showGameOver(gs) {
@@ -922,9 +937,7 @@ export class UIManager {
         }
 
         // Update XP metrics for rank (independent of score)
-        this._gamesPlayed++;
-        this._cumScore += score; // still track for display purposes only
-        _setCookie('qad_gp', this._gamesPlayed);
+        this._cumScore += score;
         _setCookie('qad_cs', this._cumScore);
 
         // Accumulate kills, playtime, best streak
@@ -939,7 +952,7 @@ export class UIManager {
         _setCookie('qad_ks', this._bestStreak);
 
         const oldRank = this._currentRank;
-        const newRepPoints = _computeRepPoints(this._totalKills, this._totalPlaytime, this._gamesPlayed, this._bestStreak, this._repPenalty);
+        const newRepPoints = _computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._bestStreak, this._repPenalty);
         const newRank = _getRank(newRepPoints);
         const rankedUp = RANKS.indexOf(newRank) > RANKS.indexOf(oldRank);
         this._currentRank = newRank;
@@ -967,7 +980,7 @@ export class UIManager {
         const finalCumEl = document.getElementById('finalCumScore');
         if (finalCumEl) finalCumEl.textContent = `RP: ${newRepPoints.toLocaleString()} (Kills:${this._totalKills} | ${Math.floor(this._totalPlaytime/60)}min | Streak:${this._bestStreak})`;
         const finalGamesEl = document.getElementById('finalGamesPlayed');
-        if (finalGamesEl) finalGamesEl.textContent = this._gamesPlayed;
+        if (finalGamesEl) finalGamesEl.textContent = this._totalWaves;
 
         // Show promotion screen after a short delay if ranked up
         if (rankedUp) {
@@ -1019,11 +1032,9 @@ export class UIManager {
             const gameKills    = gs.getInterceptionsCount?.() ?? 0;
             const gamePlaytime = this.game.getGameTime?.()    ?? 0;
             const gameStreak   = this.game.getPeakStreak?.()  ?? 0;
-            this._gamesPlayed++;
             this._totalKills    += gameKills;
             this._totalPlaytime += gamePlaytime;
             if (gameStreak > this._bestStreak) this._bestStreak = gameStreak;
-            _setCookie('qad_gp', this._gamesPlayed);
             _setCookie('qad_tk', this._totalKills);
             _setCookie('qad_pt', this._totalPlaytime);
             _setCookie('qad_ks', this._bestStreak);
@@ -1040,7 +1051,7 @@ export class UIManager {
         const oldRank = this._currentRank;
 
         // Apply penalty: set penalty so effective repPoints floors at targetRank
-        const currentRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._gamesPlayed, this._bestStreak, this._repPenalty);
+        const currentRp = _computeRepPoints(this._totalKills, this._totalPlaytime, this._totalWaves, this._bestStreak, this._repPenalty);
         const needed = currentRp - targetRank.repPoints;
         if (needed > 0) this._repPenalty += needed;
         _setCookie('qad_rkp', this._repPenalty);

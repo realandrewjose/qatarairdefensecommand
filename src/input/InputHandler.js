@@ -309,6 +309,7 @@ export class InputHandler {
         this.game.togglePause();
         document.getElementById('pauseScreen')?.classList.add('hidden');
         this.sound?.resume();
+        this.sound?.resumeMusic?.();
     }
 
     _allyRequest() {
